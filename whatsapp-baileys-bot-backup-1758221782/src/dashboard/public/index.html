@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot Dashboard</title>
+    <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            padding: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .card-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-connecting {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* Cotações Styles */
+        .rates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .rate-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .rate-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .rate-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .currency-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .currency-flag {
+            font-size: 1.5em;
+        }
+
+        .currency-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .edit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background: #5a67d8;
+        }
+
+        .rate-values {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .rate-item {
+            text-align: center;
+        }
+
+        .rate-label {
+            font-size: 0.85em;
+            color: #64748b;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .rate-value {
+            font-size: 1.3em;
+            font-weight: 700;
+        }
+
+        .rate-buy {
+            color: #10b981;
+        }
+
+        .rate-sell {
+            color: #ef4444;
+        }
+
+        .rate-input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1.1em;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+
+        .rate-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .rate-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: background 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-save {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #059669;
+        }
+
+        .btn-cancel {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #4b5563;
+        }
+
+        .last-updated {
+            font-size: 0.75em;
+            color: #64748b;
+            margin-top: 10px;
+            text-align: center;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* Logs Section */
+        .logs-container {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 20px;
+            color: #e5e7eb;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .logs-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .logs-container::-webkit-scrollbar-track {
+            background: #374151;
+            border-radius: 4px;
+        }
+
+        .logs-container::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #5a67d8;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rate-values {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 WhatsApp Bot Dashboard</h1>
+            <p>Gerencie seu bot e cotações em tempo real</p>
+        </div>
+
+        <button class="refresh-btn" onclick="refreshAll()">🔄 Atualizar Dados</button>
+
+        <div class="dashboard-grid">
+            <!-- Status do Bot -->
+            <div class="card">
+                <div class="card-title">
+                    📱 Status da Conexão
+                </div>
+                <div class="status-badge" id="connection-status">Conectando...</div>
+                <div style="margin-top: 15px; font-size: 0.9em; color: #666;" id="last-seen"></div>
+
+                <!-- QR Code Section -->
+                <div id="qrcode-section" style="margin-top: 20px; text-align: center; display: none;">
+                    <div style="margin-bottom: 10px; font-weight: 600; color: #667eea;">
+                        📱 Escaneie o QR Code com seu WhatsApp:
+                    </div>
+                    <div style="background: white; padding: 15px; border-radius: 12px; border: 2px solid #e2e8f0; display: inline-block;">
+                        <img id="qrcode-image" src="" alt="QR Code" style="max-width: 200px; height: auto; border-radius: 8px;" />
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.8em; color: #666;">
+                        💡 Aponte a câmera do WhatsApp para conectar
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estatísticas -->
+            <div class="card">
+                <div class="card-title">📊 Mensagens Processadas</div>
+                <div class="stat-number" id="total-messages">0</div>
+                <div class="stat-label">Total de mensagens</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">👥 Usuários Conectados</div>
+                <div class="stat-number" id="connected-users">0</div>
+                <div class="stat-label">Conversas ativas</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">⏱️ Tempo Online</div>
+                <div class="stat-number" id="uptime">0h 0m</div>
+                <div class="stat-label">Sistema ativo</div>
+            </div>
+        </div>
+
+        <!-- Seção de Cotações -->
+        <div class="card">
+            <div class="card-title">
+                💱 Cotações das Moedas
+                <span style="font-size: 0.8em; color: #666; font-weight: normal;">
+                    Clique em "Editar" para alterar as taxas
+                </span>
+            </div>
+            <div class="rates-grid" id="rates-container">
+                <!-- Cotações serão carregadas aqui -->
+            </div>
+        </div>
+
+        <!-- Seção de Filiais -->
+        <div class="card">
+            <div class="card-title">
+                🏢 Informações das Filiais
+                <span style="font-size: 0.8em; color: #666; font-weight: normal;">
+                    Gerencie dados de todas as unidades
+                </span>
+            </div>
+            <div class="rates-grid" id="branches-container">
+                <!-- Filiais serão carregadas aqui -->
+            </div>
+        </div>
+
+        <!-- Logs em Tempo Real -->
+        <div class="card">
+            <div class="card-title">📝 Logs em Tempo Real</div>
+            <div class="logs-container" id="logs-container">
+                <div class="log-entry">Conectando ao servidor...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let exchangeRates = [];
+        let editingCurrency = null;
+        let branches = [];
+        let editingBranch = null;
+
+        // Conectar ao Socket.IO
+        function initSocket() {
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('Conectado ao dashboard');
+                socket.emit('requestStatus');
+            });
+
+            socket.on('botStatus', (status) => {
+                updateBotStatus(status);
+            });
+
+            socket.on('stats', (stats) => {
+                updateStats(stats);
+            });
+
+            socket.on('logs', (logs) => {
+                updateLogs(logs);
+            });
+
+            socket.on('exchangeRates', (rates) => {
+                exchangeRates = rates;
+                renderRates();
+            });
+
+            socket.on('exchangeRatesUpdate', (rates) => {
+                exchangeRates = rates;
+                renderRates();
+                showNotification('💱 Cotações atualizadas!', 'success');
+            });
+
+            socket.on('branches', (branchesData) => {
+                console.log('🏢 Received branches data:', branchesData);
+                branches = branchesData;
+                renderBranches();
+            });
+
+            socket.on('branchesUpdate', (branchesData) => {
+                branches = branchesData;
+                renderBranches();
+                showNotification('🏢 Filiais atualizadas!', 'success');
+            });
+
+            socket.on('updateQRCode', (qrDataURL) => {
+                console.log('📱 Received QR Code update');
+                showQRCode(qrDataURL);
+            });
+
+            socket.on('qrCode', (qrDataURL) => {
+                console.log('📱 Received QR Code via qrCode event');
+                showQRCode(qrDataURL);
+            });
+
+            socket.on('botConnected', () => {
+                console.log('📱 Bot connected, hiding QR Code');
+                hideQRCode();
+            });
+        }
+
+        function updateBotStatus(status) {
+            const statusElement = document.getElementById('connection-status');
+            const lastSeenElement = document.getElementById('last-seen');
+
+            if (status.connected) {
+                statusElement.className = 'status-badge status-connected';
+                statusElement.textContent = '✅ Conectado';
+                hideQRCode();
+            } else if (status.connectionStatus === 'qr' && status.qrCode) {
+                statusElement.className = 'status-badge status-connecting';
+                statusElement.textContent = '📱 Aguardando QR Code';
+                showQRCode(status.qrCode);
+            } else {
+                statusElement.className = 'status-badge status-disconnected';
+                statusElement.textContent = '❌ Desconectado';
+                hideQRCode();
+            }
+
+            if (status.lastSeen) {
+                lastSeenElement.textContent = `Última atividade: ${new Date(status.lastSeen).toLocaleString('pt-BR')}`;
+            }
+        }
+
+        function showQRCode(qrDataURL) {
+            const qrSection = document.getElementById('qrcode-section');
+            const qrImage = document.getElementById('qrcode-image');
+
+            qrImage.src = qrDataURL;
+            qrSection.style.display = 'block';
+            showNotification('📱 Novo QR Code disponível! Escaneie para conectar.', 'info');
+        }
+
+        function hideQRCode() {
+            const qrSection = document.getElementById('qrcode-section');
+            qrSection.style.display = 'none';
+        }
+
+        function updateStats(stats) {
+            document.getElementById('total-messages').textContent = stats.totalMessages.toLocaleString('pt-BR');
+            document.getElementById('connected-users').textContent = stats.connectedUsers;
+            document.getElementById('uptime').textContent = stats.uptime;
+        }
+
+        function updateLogs(logs) {
+            const container = document.getElementById('logs-container');
+            container.innerHTML = '';
+
+            logs.forEach(log => {
+                const logElement = document.createElement('div');
+                logElement.className = 'log-entry';
+                logElement.textContent = log;
+                container.appendChild(logElement);
+            });
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderRates() {
+            const container = document.getElementById('rates-container');
+            container.innerHTML = '';
+
+            exchangeRates.forEach(rate => {
+                const rateCard = createRateCard(rate);
+                container.appendChild(rateCard);
+            });
+        }
+
+        function createRateCard(rate) {
+            const card = document.createElement('div');
+            card.className = 'rate-card';
+
+            const isEditing = editingCurrency === rate.currency;
+
+            card.innerHTML = `
+                <div class="rate-header">
+                    <div class="currency-info">
+                        <span class="currency-flag">${rate.symbol}</span>
+                        <span class="currency-name">${rate.currency}</span>
+                    </div>
+                    ${!isEditing ? `<button class="edit-btn" onclick="startEdit('${rate.currency}')">✏️ Editar</button>` : ''}
+                </div>
+
+                <div class="rate-values">
+                    <div class="rate-item">
+                        <div class="rate-label">💰 Compra</div>
+                        ${isEditing ?
+                            `<input type="number" step="0.01" class="rate-input" id="buy-${rate.currency}" value="${rate.buyRate.toFixed(2)}">` :
+                            `<div class="rate-value rate-buy">R$ ${rate.buyRate.toFixed(2)}</div>`
+                        }
+                    </div>
+                    <div class="rate-item">
+                        <div class="rate-label">💸 Venda</div>
+                        ${isEditing ?
+                            `<input type="number" step="0.01" class="rate-input" id="sell-${rate.currency}" value="${rate.sellRate.toFixed(2)}">` :
+                            `<div class="rate-value rate-sell">R$ ${rate.sellRate.toFixed(2)}</div>`
+                        }
+                    </div>
+                </div>
+
+                ${isEditing ? `
+                    <div class="rate-actions">
+                        <button class="btn btn-save" onclick="saveRate('${rate.currency}')">💾 Salvar</button>
+                        <button class="btn btn-cancel" onclick="cancelEdit()">❌ Cancelar</button>
+                    </div>
+                ` : ''}
+
+                <div class="last-updated">
+                    Atualizado: ${new Date(rate.lastUpdated).toLocaleString('pt-BR')}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function startEdit(currency) {
+            editingCurrency = currency;
+            renderRates();
+        }
+
+        function cancelEdit() {
+            editingCurrency = null;
+            renderRates();
+        }
+
+        function saveRate(currency) {
+            const buyInput = document.getElementById(`buy-${currency}`);
+            const sellInput = document.getElementById(`sell-${currency}`);
+
+            const buyRate = parseFloat(buyInput.value);
+            const sellRate = parseFloat(sellInput.value);
+
+            if (isNaN(buyRate) || isNaN(sellRate) || buyRate <= 0 || sellRate <= 0) {
+                showNotification('❌ Por favor, insira valores válidos!', 'error');
+                return;
+            }
+
+            if (buyRate >= sellRate) {
+                showNotification('❌ A taxa de compra deve ser menor que a de venda!', 'error');
+                return;
+            }
+
+            // Enviar atualização via socket
+            socket.emit('updateExchangeRate', {
+                currency: currency,
+                buyRate: buyRate,
+                sellRate: sellRate
+            });
+
+            editingCurrency = null;
+            showNotification('⏳ Atualizando cotação...', 'info');
+        }
+
+        // Funções para gerenciar filiais
+        function renderBranches() {
+            const container = document.getElementById('branches-container');
+            container.innerHTML = '';
+
+            branches.forEach(branch => {
+                const branchCard = createBranchCard(branch);
+                container.appendChild(branchCard);
+            });
+        }
+
+        function createBranchCard(branch) {
+            const card = document.createElement('div');
+            card.className = 'rate-card';
+
+            const isEditing = editingBranch === branch.id;
+
+            card.innerHTML = `
+                <div class="rate-header">
+                    <div class="currency-info">
+                        <span class="currency-flag">🏢</span>
+                        <span class="currency-name">${branch.name}</span>
+                    </div>
+                    ${!isEditing ? `<button class="edit-btn" onclick="startBranchEdit('${branch.id}')">✏️ Editar</button>` : ''}
+                </div>
+
+                <div style="display: grid; gap: 15px;">
+                    <div>
+                        <div class="rate-label">📍 Nome da Filial</div>
+                        ${isEditing ?
+                            `<input type="text" class="rate-input" id="name-${branch.id}" value="${branch.name}" style="text-align: left;">` :
+                            `<div style="font-weight: 600; color: #334155;">${branch.name}</div>`
+                        }
+                    </div>
+
+                    <div>
+                        <div class="rate-label">📞 Telefone</div>
+                        ${isEditing ?
+                            `<input type="text" class="rate-input" id="phone-${branch.id}" value="${branch.phone}" placeholder="559185001234" style="text-align: left;">` :
+                            `<div style="font-weight: 600; color: #334155;">${formatPhoneDisplay(branch.phone)}</div>`
+                        }
+                    </div>
+
+                    <div>
+                        <div class="rate-label">🕐 Segunda a Sexta</div>
+                        ${isEditing ?
+                            `<input type="text" class="rate-input" id="weekdays-${branch.id}" value="${branch.hours.weekdays}" placeholder="09:00 às 18:00" style="text-align: left;">` :
+                            `<div style="font-weight: 600; color: #334155;">${branch.hours.weekdays}</div>`
+                        }
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <div class="rate-label">🕐 Sábado</div>
+                            ${isEditing ?
+                                `<input type="text" class="rate-input" id="saturday-${branch.id}" value="${branch.hours.saturday}" placeholder="09:00 às 14:00" style="text-align: left;">` :
+                                `<div style="font-weight: 600; color: #334155;">${branch.hours.saturday}</div>`
+                            }
+                        </div>
+                        <div>
+                            <div class="rate-label">🕐 Domingo</div>
+                            ${isEditing ?
+                                `<input type="text" class="rate-input" id="sunday-${branch.id}" value="${branch.hours.sunday}" placeholder="Fechado" style="text-align: left;">` :
+                                `<div style="font-weight: 600; color: #334155;">${branch.hours.sunday}</div>`
+                            }
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="rate-label">📍 Endereço</div>
+                        ${isEditing ?
+                            `<textarea class="rate-input" id="address-${branch.id}" rows="2" style="text-align: left; resize: vertical;">${branch.address}</textarea>` :
+                            `<div style="font-weight: 600; color: #334155; font-size: 0.9em;">${branch.address}</div>`
+                        }
+                    </div>
+                </div>
+
+                ${isEditing ? `
+                    <div class="rate-actions">
+                        <button class="btn btn-save" onclick="saveBranch('${branch.id}')">💾 Salvar</button>
+                        <button class="btn btn-cancel" onclick="cancelBranchEdit()">❌ Cancelar</button>
+                    </div>
+                ` : ''}
+            `;
+
+            return card;
+        }
+
+        function formatPhoneDisplay(phone) {
+            if (phone && phone.length >= 10) {
+                const cleaned = phone.replace(/\D/g, '');
+                if (cleaned.startsWith('55')) {
+                    const withoutCountry = cleaned.substring(2);
+                    if (withoutCountry.length === 11) {
+                        const area = withoutCountry.substring(0, 2);
+                        const number = withoutCountry.substring(2);
+                        const first = number.substring(0, 5);
+                        const second = number.substring(5);
+                        return `(${area}) ${first}-${second}`;
+                    }
+                }
+            }
+            return phone;
+        }
+
+        function startBranchEdit(branchId) {
+            editingBranch = branchId;
+            renderBranches();
+        }
+
+        function cancelBranchEdit() {
+            editingBranch = null;
+            renderBranches();
+        }
+
+        function saveBranch(branchId) {
+            const nameInput = document.getElementById(`name-${branchId}`);
+            const phoneInput = document.getElementById(`phone-${branchId}`);
+            const weekdaysInput = document.getElementById(`weekdays-${branchId}`);
+            const saturdayInput = document.getElementById(`saturday-${branchId}`);
+            const sundayInput = document.getElementById(`sunday-${branchId}`);
+            const addressInput = document.getElementById(`address-${branchId}`);
+
+            const name = nameInput.value.trim();
+            const phone = phoneInput.value.trim();
+            const weekdays = weekdaysInput.value.trim();
+            const saturday = saturdayInput.value.trim();
+            const sunday = sundayInput.value.trim();
+            const address = addressInput.value.trim();
+
+            if (!name || !phone || !weekdays || !saturday || !sunday || !address) {
+                showNotification('❌ Por favor, preencha todos os campos!', 'error');
+                return;
+            }
+
+            // Validar formato do telefone
+            if (!/^\d{12,13}$/.test(phone.replace(/\D/g, ''))) {
+                showNotification('❌ Telefone deve ter formato: 559185001234', 'error');
+                return;
+            }
+
+            // Enviar atualização via socket
+            socket.emit('updateBranch', {
+                id: branchId,
+                name: name,
+                phone: phone,
+                hours: {
+                    weekdays: weekdays,
+                    saturday: saturday,
+                    sunday: sunday
+                },
+                address: address
+            });
+
+            editingBranch = null;
+            showNotification('⏳ Atualizando filial...', 'info');
+        }
+
+        function refreshAll() {
+            if (socket) {
+                socket.emit('requestStatus');
+                showNotification('🔄 Dados atualizados!', 'info');
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Criar notificação simples
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 600;
+                z-index: 1000;
+                transition: all 0.3s ease;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#667eea'};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100px)';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 3000);
+        }
+
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            initSocket();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(xargs ls:*)",
+      "Bash(timeout 10s npm start)",
+      "Bash(node:*)",
+      "Bash(npm start)",
+      "Read(//Users/solonquinha/Downloads/**)",
+      "Bash(npm run dashboard:*)",
+      "Bash(git add:*)",
+      "Bash(git config:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

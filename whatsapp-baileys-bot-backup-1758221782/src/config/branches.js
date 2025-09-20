@@ -1,0 +1,210 @@
+module.exports = {
+  "branches": [
+    {
+      "id": "matriz",
+      "name": "Fair Câmbio -  São José",
+      "phone": "559185001234",
+      "address": "Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401, Brasil",
+      "hours": {
+        "weekdays": "09:00 às 17:30",
+        "saturday": "Fechado",
+        "sunday": "Fechado"
+      },
+      "maps": "https://maps.google.com/?q=-3.1319,-60.0231",
+      "active": true,
+      "priority": 1,
+      "region": "centro",
+      "manager": "João Silva",
+      "email": "matriz@faircambio.com.br",
+      "features": [
+        "exchange",
+        "remittance",
+        "cards",
+        "consultation"
+      ],
+      "maxConnections": 50,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 30000,
+        "timeout": 5000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    },
+    {
+      "id": "shopping-manauara",
+      "name": "Fair Câmbio - Shopping Manauara",
+      "phone": "559185002345",
+      "address": "Av. Mário Ypiranga, 1300 - Adrianópolis, Manaus/AM",
+      "hours": {
+        "weekdays": "10:00 às 22:00",
+        "saturday": "10:00 às 22:00",
+        "sunday": "14:00 às 20:00"
+      },
+      "maps": "https://maps.google.com/?q=-3.1026,-60.0104",
+      "active": true,
+      "priority": 2,
+      "region": "zona-leste",
+      "manager": "Maria Santos",
+      "email": "manauara@faircambio.com.br",
+      "features": [
+        "exchange",
+        "consultation",
+        "cards"
+      ],
+      "maxConnections": 30,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 45000,
+        "timeout": 8000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    },
+    {
+      "id": "amazonas-shopping",
+      "name": "Fair Câmbio - Bombinhas",
+      "phone": "+55 47 999812517",
+      "address": "Anexo ao hotel morada do mar - Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000, Brasil",
+      "hours": {
+        "weekdays": "09:00 às 17:00",
+        "saturday": "Fechado",
+        "sunday": "Fechado"
+      },
+      "maps": "https://maps.google.com/?q=-3.0935,-60.0239",
+      "active": true,
+      "priority": 3,
+      "region": "zona-centro-sul",
+      "manager": "Carlos Oliveira",
+      "email": "amazonas@faircambio.com.br",
+      "features": [
+        "exchange",
+        "remittance",
+        "consultation"
+      ],
+      "maxConnections": 40,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 30000,
+        "timeout": 6000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    },
+    {
+      "id": "ponta-negra",
+      "name": "Fair Câmbio - Ponta Negra",
+      "phone": "559185004567",
+      "address": "Av. Coronel Teixeira, 5705 - Ponta Negra, Manaus/AM",
+      "hours": {
+        "weekdays": "09:00 às 18:00",
+        "saturday": "09:00 às 14:00",
+        "sunday": "Fechado"
+      },
+      "maps": "https://maps.google.com/?q=-3.0741,-60.1057",
+      "active": true,
+      "priority": 4,
+      "region": "zona-oeste",
+      "manager": "Ana Costa",
+      "email": "pontanegra@faircambio.com.br",
+      "features": [
+        "exchange",
+        "consultation",
+        "cards"
+      ],
+      "maxConnections": 25,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 60000,
+        "timeout": 10000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    },
+    {
+      "id": "aeroporto",
+      "name": "Fair Câmbio - Criciúma ",
+      "phone": "559185005678",
+      "address": "R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250, Brasil",
+      "hours": {
+        "weekdays": "09:00 às 17:00",
+        "saturday": "Fechado",
+        "sunday": "Fechado"
+      },
+      "maps": "https://maps.google.com/?q=-3.0386,-60.0497",
+      "active": true,
+      "priority": 5,
+      "region": "aeroporto",
+      "manager": "Roberto Lima",
+      "email": "aeroporto@faircambio.com.br",
+      "features": [
+        "exchange",
+        "remittance",
+        "consultation",
+        "express"
+      ],
+      "maxConnections": 60,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 20000,
+        "timeout": 3000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    }
+  ]
+};
+
+// Add all the methods back
+Object.assign(module.exports, {
+  getActiveBranches() {
+    return this.branches.filter(b => b.active);
+  },
+  getBranchByPhone(phone) {
+    return this.branches.find(b => b.phone === phone);
+  },
+  getBranchById(id) {
+    return this.branches.find(b => b.id === id);
+  },
+  getBranchesByRegion(region) {
+    return this.branches.filter(b => b.region === region);
+  },
+  getBranchesByPriority() {
+    return this.branches.sort((a, b) => a.priority - b.priority);
+  },
+  getBranchByFeature(feature) {
+    return this.branches.filter(b => b.features.includes(feature));
+  },
+  getAllLocations() {
+    return this.branches.map(b => ({
+      id: b.id,
+      name: b.name,
+      address: b.address,
+      hours: b.hours,
+      maps: b.maps,
+      region: b.region,
+      manager: b.manager,
+      active: b.active
+    }));
+  }
+});

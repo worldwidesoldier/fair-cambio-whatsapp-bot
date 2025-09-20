@@ -1,0 +1,48 @@
+{
+  "welcome": {
+    "template": "{{greeting}}{{name}}! 👋\n\nBem-vindo à *{{company}}*!\n{{address}}\n{{phone}}\n\nComo posso ajudar você hoje?\n\nDigite *MENU* para ver as opções disponíveis ou envie sua dúvida diretamente.",
+    "variables": {
+      "company": "FAIR CÂMBIO SUL",
+      "address": "📍 Endereço da Filial",
+      "phone": "📞 (91) 3333-4444"
+    }
+  },
+  "menu": {
+    "template": "🏪 {{company}}\n  Seu câmbio de confiança há 30 anos\n\n  📋 Escolha uma opção:\n\n  💰 Taxas de hoje - Digite 1\n  🕐 Nossos horários - Digite 2\n  📍 Nossas localizações - Digite 3\n  📋 Documentos necessários - Digite 4\n  🛒 Como funciona a compra - Digite 5\n  👨‍💼 Falar com atendente - Digite 6\n\n  ou mande sua dúvida diretamente! 💬",
+    "variables": {
+      "company": "FAIR CÂMBIO SUL"
+    }
+  },
+  "hours": {
+    "template": "⏰ *HORÁRIOS DE FUNCIONAMENTO*\n\n{{branches}}\n\n📞 *Atendimento WhatsApp:*\nSegunda a Sexta: 09:00 às 18:00\nSábado: 09:00 às 14:00\n\n_Mensagens fora do horário serão respondidas no próximo dia útil_",
+    "variables": {
+      "branches": "*Unidade Centro (Matriz):*\nSegunda a Sexta: 09:00 às 18:00\nSábado: 09:00 às 14:00\nDomingo: Fechado\n\n*Unidades Shopping:*\nSegunda a Sábado: 10:00 às 22:00\nDomingo: 14:00 às 20:00\n\n*Unidade Aeroporto:*\nTodos os dias: 06:00 às 22:00"
+    }
+  },
+  "documents": {
+    "template": "📄 *DOCUMENTOS NECESSÁRIOS*\n\nPara realizar operações de câmbio, você precisará:\n\n*Pessoa Física:*\n✅ Documento de identidade com foto (RG ou CNH)\n✅ CPF\n✅ Comprovante de residência (últimos 90 dias)\n\n*Pessoa Jurídica:*\n✅ CNPJ\n✅ Contrato Social\n✅ Documento do representante legal\n✅ Procuração (se aplicável)\n\n*Valores acima de R$ 10.000:*\n📌 Comprovante de origem dos recursos\n📌 Declaração de propósito da operação\n\n⚠️ *Importante:* Todos os documentos devem ser originais ou cópias autenticadas.",
+    "variables": {}
+  },
+  "locations": {
+    "template": "📍 *NOSSAS LOCALIZAÇÕES*\n\n{{branches}}",
+    "variables": {
+      "branches": "*1. Centro (Matriz)*\n📍 Rua do Comércio, 123 - Centro\n⏰ Seg-Sex: 09:00 às 18:00\n⏰ Sábado: 09:00 às 14:00\n⏰ Domingo: Fechado\n🗺️ https://maps.google.com/centro\n\n*2. Shopping Pátio Belém*\n📍 Av. Augusto Montenegro, 4300 - Parque Verde\n⏰ Seg-Sáb: 10:00 às 22:00\n⏰ Domingo: 14:00 às 20:00\n🗺️ https://maps.google.com/shopping\n\n*3. Aeroporto Val-de-Cans*\n📍 Av. Julio César, s/n - Val-de-Cans\n⏰ Todos os dias: 06:00 às 22:00\n🗺️ https://maps.google.com/aeroporto"
+    }
+  },
+  "purchase_process": {
+    "template": "🛒 *COMO FUNCIONA A COMPRA*\n\n*Passo a passo para comprar moeda estrangeira:*\n\n*1️⃣ Consulte nossa cotação*\nDigite *1* para ver as taxas atuais\n\n*2️⃣ Traga seus documentos*\n• RG ou CNH (documento com foto)\n• CPF\n• Comprovante de residência (últimos 90 dias)\n\n*3️⃣ Venha até nossa loja*\nDigite *3* para ver nossas localizações\n\n*4️⃣ Finalização*\n• Preenchimento de declaração\n• Pagamento em dinheiro ou cartão\n• Recebimento da moeda\n\n⚠️ *Importante:*\n• Valores acima de R$ 10.000 requerem comprovação de origem\n• Consulte disponibilidade antes de se deslocar\n• Atendimento de segunda a sábado\n\n📞 Dúvidas? Digite *6* para falar com um atendente!",
+    "variables": {}
+  },
+  "attendant": {
+    "template": "🙋‍♂️ *ATENDIMENTO HUMANO*\n\n{{branch_info}}\n\n{{status_message}}",
+    "variables": {
+      "branch_info": "🏢 FAIR CÂMBIO SUL\n📞 (91) 3333-4444\n👤 Gerente: João Silva",
+      "business_hours_message": "Aguarde um momento! Um de nossos atendentes irá falar com você em breve.\n\n⏱️ Tempo médio de espera: 2-5 minutos\n\nEnquanto isso, você pode:\n• Digitar *MENU* para ver nossas opções\n• Consultar nossas *cotações*\n• Ver nossos *horários* e *endereços*",
+      "after_hours_message": "🌙 *FORA DO HORÁRIO*\n\nNosso atendimento humano está disponível:\nSegunda a Sexta: 09:00 às 18:00\nSábado: 09:00 às 14:00\n\n📝 Deixe sua mensagem que responderemos assim que possível!\n\nVocê também pode:\n📞 Ligar: (91) 3333-4444\n📧 Email: contato@faircambio.com.br"
+    }
+  },
+  "error": {
+    "template": "❌ Desculpe, não entendi sua mensagem.\n\nDigite *MENU* para ver as opções disponíveis ou envie:\n• *cotação* - Ver todas as cotações\n• *horário* - Nossos horários\n• *endereço* - Nossas localizações\n• *documento* - Documentos necessários\n• *atendente* - Falar com um atendente",
+    "variables": {}
+  }
+}

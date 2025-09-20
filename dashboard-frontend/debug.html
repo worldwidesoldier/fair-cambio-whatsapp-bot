@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Debug Test</title>
+</head>
+<body>
+    <h1>WebSocket Debug Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="branches">Branches: 0</div>
+    <div id="rates">Rates: 0</div>
+    <div id="logs"></div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io('http://localhost:3001');
+        const logs = document.getElementById('logs');
+
+        function addLog(message) {
+            const logDiv = document.createElement('div');
+            logDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(logDiv);
+            console.log(message);
+        }
+
+        socket.on('connect', () => {
+            document.getElementById('status').textContent = 'Connected!';
+            addLog('🔥 WebSocket connected!');
+            socket.emit('requestStatus');
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('status').textContent = 'Disconnected';
+            addLog('❌ WebSocket disconnected');
+        });
+
+        socket.on('branches', (branchesData) => {
+            addLog(`🏢 Received branches: ${branchesData?.length} branches`);
+            document.getElementById('branches').textContent = `Branches: ${branchesData?.length || 0}`;
+            if (branchesData && branchesData.length > 0) {
+                addLog(`🏢 First branch: ${branchesData[0].name}`);
+            }
+        });
+
+        socket.on('exchangeRates', (rates) => {
+            addLog(`💱 Received rates: ${rates?.length} rates`);
+            document.getElementById('rates').textContent = `Rates: ${rates?.length || 0}`;
+        });
+
+        socket.on('connect_error', (error) => {
+            addLog(`❌ Connection error: ${error.message}`);
+        });
+    </script>
+</body>
+</html>

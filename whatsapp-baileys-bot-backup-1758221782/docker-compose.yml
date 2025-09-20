@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # Serviço principal - todas as filiais
+  fair-cambio-multi:
+    build: .
+    container_name: fair-cambio-multi-branch
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - TZ=America/Sao_Paulo
+      - LOG_LEVEL=info
+      - ENABLE_MONITORING_API=true
+      - MONITORING_PORT=3001
+      # Adicione suas variáveis específicas aqui
+      - ADMIN_NUMBERS=${ADMIN_NUMBERS}
+      - BOT_NAME=${BOT_NAME}
+      - SESSION_NAME=${SESSION_NAME}
+    ports:
+      - "3001:3001"  # API de monitoramento
+    volumes:
+      - ./sessions:/app/sessions
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    networks:
+      - fair-cambio-network
+    healthcheck:
+      test: ["CMD", "node", "/app/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Serviços individuais para filiais (opcionais)
+  # Descomente se precisar rodar filiais separadamente
+
+  # fair-cambio-matriz:
+  #   build: .
+  #   container_name: fair-cambio-matriz
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=production
+  #     - BRANCH_ID=matriz
+  #     - LOG_LEVEL=info
+  #     - ADMIN_NUMBERS=${ADMIN_NUMBERS}
+  #     - BOT_NAME=${BOT_NAME}
+  #   volumes:
+  #     - ./sessions/matriz:/app/sessions/matriz
+  #     - ./logs/branches:/app/logs/branches
+  #     - ./.env:/app/.env:ro
+  #   command: ["node", "src/single-branch.js"]
+  #   depends_on:
+  #     - fair-cambio-multi
+  #   networks:
+  #     - fair-cambio-network
+
+  # fair-cambio-manauara:
+  #   build: .
+  #   container_name: fair-cambio-manauara
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=production
+  #     - BRANCH_ID=shopping-manauara
+  #     - LOG_LEVEL=info
+  #     - ADMIN_NUMBERS=${ADMIN_NUMBERS}
+  #     - BOT_NAME=${BOT_NAME}
+  #   volumes:
+  #     - ./sessions/shopping-manauara:/app/sessions/shopping-manauara
+  #     - ./logs/branches:/app/logs/branches
+  #     - ./.env:/app/.env:ro
+  #   command: ["node", "src/single-branch.js"]
+  #   depends_on:
+  #     - fair-cambio-multi
+  #   networks:
+  #     - fair-cambio-network
+
+  # Nginx para proxy reverso (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: fair-cambio-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - fair-cambio-multi
+    networks:
+      - fair-cambio-network
+
+  # Redis para cache e sessões (opcional)
+  redis:
+    image: redis:alpine
+    container_name: fair-cambio-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - fair-cambio-network
+    command: redis-server --appendonly yes
+
+  # Monitoring com Prometheus (opcional)
+  prometheus:
+    image: prom/prometheus
+    container_name: fair-cambio-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - fair-cambio-network
+
+  # Grafana para visualização (opcional)
+  grafana:
+    image: grafana/grafana
+    container_name: fair-cambio-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - fair-cambio-network
+
+volumes:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  fair-cambio-network:
+    driver: bridge

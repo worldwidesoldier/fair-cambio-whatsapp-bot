@@ -1,0 +1,23 @@
+{
+  "currencies": {
+    "USD": {
+      "name": "Dólar Americano",
+      "emoji": "💵",
+      "buy": 5.15,
+      "sell": 5.25
+    },
+    "EUR": {
+      "name": "Euro",
+      "emoji": "💶",
+      "buy": 5.45,
+      "sell": 5.55
+    },
+    "GBP": {
+      "name": "Libra Esterlina",
+      "emoji": "💷",
+      "buy": 6.20,
+      "sell": 6.35
+    }
+  },
+  "lastUpdate": "2024-01-15T10:30:00.000Z"
+}
