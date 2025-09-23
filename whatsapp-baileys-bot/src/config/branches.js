@@ -6,7 +6,7 @@ module.exports = {
       "phone": "(48) 9969-72142",
       "address": "Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401",
       "hours": {
-        "weekdays": "09:00 às 17:30",
+        "weekdays": "09:00 - 17:30",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
@@ -42,8 +42,8 @@ module.exports = {
       "phone": "(47) 9928-72777",
       "address": "Av. Brasil, 1615 - Sala 22 - Centro, Balneário Camboriú - SC, 88330-048",
       "hours": {
-        "weekdays": "09:00 às 17:00",
-        "saturday": "09:00 às 12:00",
+        "weekdays": "09:00 - 17:00",
+        "saturday": "09:00 - 12:00",
         "sunday": "Fechado"
       },
       "maps": "https://maps.google.com/maps?q=-27.0006,-48.6262",
@@ -77,7 +77,7 @@ module.exports = {
       "phone": "(47) 9998-12517",
       "address": "Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000",
       "hours": {
-        "weekdays": "09:00 às 17:00",
+        "weekdays": "09:00 - 17:00",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
@@ -112,7 +112,7 @@ module.exports = {
       "phone": "(47) 9913-90101",
       "address": "Rua Centro, 100 - Centro, Brusque - SC, 88350-000",
       "hours": {
-        "weekdays": "09:00 às 17:00",
+        "weekdays": "09:00 - 17:00",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
@@ -147,7 +147,7 @@ module.exports = {
       "phone": "(48) 9985-65822",
       "address": "R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250",
       "hours": {
-        "weekdays": "09:00 às 17:00",
+        "weekdays": "09:00 - 17:00",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },

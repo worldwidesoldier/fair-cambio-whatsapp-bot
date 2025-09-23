@@ -966,11 +966,15 @@ class WhatsAppBotEnhanced {
       this.performanceMonitor.recordMessage();
 
       // Usar dados do cache se disponível, senão usar dados padrão
-      const response = await this.menuHandler.handleMessage(text, {
-        rates: this.cachedRates,
-        branches: this.cachedBranches,
-        messages: this.cachedMessages
-      });
+      // Precisamos determinar a filial baseada no remetente ou usar configuração geral
+      let branchConfig = null;
+
+      // Se temos branches em cache, usar a primeira como padrão
+      if (this.cachedBranches && this.cachedBranches.length > 0) {
+        branchConfig = null; // null = mostrar todas as filiais
+      }
+
+      const response = await this.menuHandler.handleMessage(text, sender, branchConfig, this);
 
       if (response) {
         await this.sock.sendMessage(sender, { text: response });

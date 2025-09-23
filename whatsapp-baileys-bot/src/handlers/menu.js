@@ -214,14 +214,30 @@ class MenuHandler {
         name: branchConfig.name,
         address: branchConfig.address,
         hours: branchConfig.hours,
-        maps: branchConfig.maps,
+        maps: branchConfig.maps || branchConfig.googleMapsLink,
         region: branchConfig.region,
         manager: branchConfig.manager,
         active: branchConfig.active
       }];
     }
 
-    // Caso contrário, mostra todas as filiais
+    // Verificar se o bot tem dados em cache
+    if (this.botInstance && this.botInstance.cachedBranches && this.botInstance.cachedBranches.length > 0) {
+      console.log('🏢 Usando filiais do cache do bot:', this.botInstance.cachedBranches.length);
+      return this.botInstance.cachedBranches.map(b => ({
+        id: b.id,
+        name: b.name,
+        address: b.address,
+        hours: b.hours,
+        maps: b.googleMapsLink || b.maps,
+        region: b.region,
+        manager: b.manager,
+        active: b.active
+      }));
+    }
+
+    // Caso contrário, mostra todas as filiais do arquivo local
+    console.log('🏢 Usando filiais do arquivo local');
     return branches.getAllLocations();
   }
 
@@ -412,8 +428,8 @@ Digite *3* para ver nossas localizações
   checkHourRange(hourRange, currentHour) {
     if (!hourRange || hourRange === 'Fechado') return false;
 
-    // Extrair horários do formato "09:00 às 18:00"
-    const match = hourRange.match(/(\d{2}):(\d{2})\s+às\s+(\d{2}):(\d{2})/);
+    // Extrair horários do formato "09:00 - 18:00" ou "09:00 às 18:00"
+    const match = hourRange.match(/(\d{2}):(\d{2})\s+(?:às|-)\s+(\d{2}):(\d{2})/);
     if (!match) return false;
 
     const startHour = parseInt(match[1]);
