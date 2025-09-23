@@ -223,6 +223,110 @@ app.post('/api/bot/generate-qr', (req, res) => {
   }
 });
 
+// Messages API
+app.get('/api/messages', (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    const messagesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/messages.json');
+    const branchesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/branches.json');
+    const ratesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/rates.json');
+
+    let messages = {};
+    let branches = {};
+    let rates = {};
+
+    if (fs.existsSync(messagesPath)) {
+      messages = JSON.parse(fs.readFileSync(messagesPath, 'utf8'));
+    }
+
+    if (fs.existsSync(branchesPath)) {
+      branches = JSON.parse(fs.readFileSync(branchesPath, 'utf8'));
+    }
+
+    if (fs.existsSync(ratesPath)) {
+      rates = JSON.parse(fs.readFileSync(ratesPath, 'utf8'));
+    }
+
+    res.json({
+      messages,
+      branches,
+      rates,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error loading messages:', error);
+    res.status(500).json({ error: 'Failed to load messages' });
+  }
+});
+
+app.put('/api/messages/:category', express.json(), (req, res) => {
+  try {
+    const { category } = req.params;
+    const { template, variables } = req.body;
+
+    const fs = require('fs');
+    const path = require('path');
+
+    const messagesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/messages.json');
+
+    let messages = {};
+    if (fs.existsSync(messagesPath)) {
+      messages = JSON.parse(fs.readFileSync(messagesPath, 'utf8'));
+    }
+
+    if (!messages[category]) {
+      messages[category] = {};
+    }
+
+    messages[category].template = template;
+    messages[category].variables = variables || {};
+    messages[category].lastUpdated = new Date().toISOString();
+
+    fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
+
+    // Notify all connected clients
+    io.emit('messageUpdated', {
+      category,
+      template,
+      variables,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ Mensagem ${category} atualizada`);
+
+    res.json({
+      success: true,
+      message: `Template ${category} updated successfully`,
+      data: messages[category]
+    });
+
+  } catch (error) {
+    console.error('Error updating message:', error);
+    res.status(500).json({ error: 'Failed to update message' });
+  }
+});
+
+app.post('/api/messages/reload', (req, res) => {
+  try {
+    // Notify bot to reload messages
+    io.emit('reloadMessages', {
+      timestamp: new Date().toISOString()
+    });
+
+    console.log('🔄 Solicitado reload de mensagens para o bot');
+
+    res.json({
+      success: true,
+      message: 'Messages reload requested'
+    });
+  } catch (error) {
+    console.error('Error reloading messages:', error);
+    res.status(500).json({ error: 'Failed to reload messages' });
+  }
+});
+
 // Socket.io connections
 io.on('connection', (socket) => {
   console.log('🔌 Cliente conectado:', socket.id);

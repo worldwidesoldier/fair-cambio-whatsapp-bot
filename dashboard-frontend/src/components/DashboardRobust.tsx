@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  MessageSquare, Users, Activity, Smartphone, RefreshCw, Settings,
-  DollarSign, Edit, Save, X, Building2, Clock, Phone, Zap,
-  CheckCircle, XCircle, AlertCircle, Send, Copy, ExternalLink
+  MessageSquare, Users, Activity, Smartphone, RefreshCw,
+  Edit, Save, X, Building2, Clock, Phone,
+  CheckCircle, AlertCircle,
+  BarChart3, FileText
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
-import QRCodeScanner from './QRCodeScanner';
+import MessagesManager from './MessagesManager';
 import { io } from 'socket.io-client';
 
 interface BotStatus {
@@ -103,6 +104,9 @@ export default function DashboardRobust() {
   const socketRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Estado das abas
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
+
   // Função para conectar WebSocket com fallback robusto
   const connectWebSocket = async () => {
     try {
@@ -150,7 +154,7 @@ export default function DashboardRobust() {
           addLog('warning', 'WebSocket desconectado');
         });
 
-        socket.on('connect_error', (error) => {
+        socket.on('connect_error', (error: any) => {
           console.log('❌ Erro de conexão WebSocket:', error);
           setConnectionError(`Erro de conexão: ${error.message}`);
           addLog('error', `Erro de conexão WebSocket: ${error.message}`);
@@ -256,7 +260,7 @@ export default function DashboardRobust() {
             const rates = await response.json();
             if (rates && rates.length > 0) {
               console.log('🔥 Fallback: Loaded rates via REST API:', rates);
-              setExchangeRates(rates.map(r => ({ ...r, id: r.currency })));
+              setExchangeRates(rates.map((r: any) => ({ ...r, id: r.currency })));
               addLog('success', `Fallback: ${rates.length} cotações carregadas via API!`);
             }
           } catch (error) {
@@ -301,7 +305,7 @@ export default function DashboardRobust() {
           addLog('warning', 'WebSocket desconectado');
         });
 
-        socket.on('connect_error', (error) => {
+        socket.on('connect_error', (error: any) => {
           console.log('❌ Erro de conexão WebSocket:', error);
           setConnectionError(`Erro de conexão: ${error.message}`);
           addLog('error', `Erro de conexão WebSocket: ${error.message}`);
@@ -397,7 +401,7 @@ export default function DashboardRobust() {
           console.log('❌ FETCH: Response not OK:', response.status);
           addLog('error', `Erro HTTP ${response.status} ao carregar filiais`);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.log(`❌ FETCH: Failed to load branches from ${baseUrl}:`, err);
         addLog('error', `Erro fetch branches: ${err.message}`);
       }
@@ -452,7 +456,7 @@ export default function DashboardRobust() {
           console.log('❌ FETCH: Rates response not OK:', response.status);
           addLog('error', `Erro HTTP ${response.status} ao carregar cotações`);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.log(`❌ FETCH: Failed to load rates from ${baseUrl}:`, err);
         addLog('error', `Erro fetch rates: ${err.message}`);
       }
@@ -547,7 +551,7 @@ export default function DashboardRobust() {
         } as any);
 
         if (response.ok) {
-          const result = await response.json();
+          await response.json();
           addLog('success', `Filial salva na API: ${baseUrl}`);
           apiSuccess = true;
         }
@@ -728,355 +732,399 @@ export default function DashboardRobust() {
           )}
         </div>
 
-        {/* Status Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-              <Smartphone className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">
-                {botStatus.connected ? 'Online' : 'Offline'}
-              </div>
-              <Badge
-                variant={botStatus.connected ? "default" : "secondary"}
-                className="mt-2"
+        {/* Navigation Tabs */}
+        <div className="mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'dashboard'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
               >
-                {botStatus.connectionStatus}
-              </Badge>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Mensagens</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{connectionStats.totalMessages.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Total processadas</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Usuários</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{connectionStats.connectedUsers}</div>
-              <p className="text-xs text-muted-foreground">Conectados hoje</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Uptime</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl sm:text-2xl font-bold">{connectionStats.uptime}</div>
-              <p className="text-xs text-muted-foreground">Tempo ativo</p>
-            </CardContent>
-          </Card>
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('messages')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'messages'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-4 w-4" />
+                  <span>Mensagens</span>
+                </div>
+              </button>
+            </nav>
+          </div>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-8">
-          {/* QR Code Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>QR Code</CardTitle>
-              <CardDescription>Escaneie para conectar o WhatsApp</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
-                {botStatus.qrCode ? (
-                  <div className="flex flex-col items-center space-y-2">
-                    <QRCode
-                      value={botStatus.qrCode}
-                      size={200}
-                      style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                    />
-                    <p className="text-xs text-gray-500 text-center">
-                      Escaneie este QR Code no WhatsApp
-                    </p>
+        {/* Tab Content */}
+        {activeTab === 'dashboard' && (
+          <div>
+            {/* Status Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Status</CardTitle>
+                  <Smartphone className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl sm:text-2xl font-bold">
+                    {botStatus.connected ? 'Online' : 'Offline'}
                   </div>
-                ) : (
-                  <div className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] bg-gray-100 flex flex-col items-center justify-center text-gray-500">
-                    <div className="text-4xl mb-2">📱</div>
-                    <div className="text-sm text-center">
-                      {botStatus.connectionStatus === 'connected' ? 'Bot Conectado!' : 'Clique em "Gerar novo QR Code"'}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <Button onClick={generateQRCode} className="mt-4 w-full">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Gerar novo QR Code
-              </Button>
-              {botStatus.phone && (
-                <p className="text-sm text-green-600 mt-2">
-                  <CheckCircle className="h-4 w-4 inline mr-1" />
-                  Conectado: {botStatus.phone}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                  <Badge
+                    variant={botStatus.connected ? "default" : "secondary"}
+                    className="mt-2"
+                  >
+                    {botStatus.connectionStatus}
+                  </Badge>
+                </CardContent>
+              </Card>
 
-          {/* Exchange Rates */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Cotações</CardTitle>
-              <CardDescription>Valores editáveis - clique para alterar</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {exchangeRates.map((rate) => (
-                  <div key={rate.id} className="border rounded-lg p-3">
-                    {editingRate === rate.id && rateEditData ? (
-                      // Modo de edição
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold">{rate.symbol}</span>
-                          </div>
-                          <p className="font-medium">{rate.currency}</p>
-                        </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Mensagens</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl sm:text-2xl font-bold">{connectionStats.totalMessages.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Total processadas</p>
+                </CardContent>
+              </Card>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-sm">Compra</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={rateEditData.buyRate}
-                              onChange={(e) => updateRateEditData('buyRate', parseFloat(e.target.value))}
-                              className="h-8"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm">Venda</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={rateEditData.sellRate}
-                              onChange={(e) => updateRateEditData('sellRate', parseFloat(e.target.value))}
-                              className="h-8"
-                            />
-                          </div>
-                        </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Usuários</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl sm:text-2xl font-bold">{connectionStats.connectedUsers}</div>
+                  <p className="text-xs text-muted-foreground">Conectados hoje</p>
+                </CardContent>
+              </Card>
 
-                        <div className="flex space-x-2">
-                          <Button onClick={handleSaveRate} size="sm" className="flex-1">
-                            <Save className="h-4 w-4 mr-1" />
-                            Salvar
-                          </Button>
-                          <Button onClick={handleCancelEditRate} variant="outline" size="sm" className="flex-1">
-                            <X className="h-4 w-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Uptime</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl sm:text-2xl font-bold">{connectionStats.uptime}</div>
+                  <p className="text-xs text-muted-foreground">Tempo ativo</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mb-8">
+              {/* QR Code Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>QR Code</CardTitle>
+                  <CardDescription>Escaneie para conectar o WhatsApp</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center">
+                  <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                    {botStatus.qrCode ? (
+                      <div className="flex flex-col items-center space-y-2">
+                        <QRCode
+                          value={botStatus.qrCode}
+                          size={200}
+                          style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        />
+                        <p className="text-xs text-gray-500 text-center">
+                          Escaneie este QR Code no WhatsApp
+                        </p>
                       </div>
                     ) : (
-                      // Modo de visualização
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold">{rate.symbol}</span>
-                          </div>
-                          <div>
-                            <p className="font-medium">{rate.currency}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <p className="text-sm">
-                              <span className="text-green-600">C: {rate.buyRate.toFixed(2)}</span>
-                              {' | '}
-                              <span className="text-red-600">V: {rate.sellRate.toFixed(2)}</span>
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEditRate(rate)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                      <div className="w-[200px] h-[200px] sm:w-[250px] sm:h-[250px] bg-gray-100 flex flex-col items-center justify-center text-gray-500">
+                        <div className="text-4xl mb-2">📱</div>
+                        <div className="text-sm text-center">
+                          {botStatus.connectionStatus === 'connected' ? 'Bot Conectado!' : 'Clique em "Gerar novo QR Code"'}
                         </div>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <Button onClick={generateQRCode} className="mt-4 w-full">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Gerar novo QR Code
+                  </Button>
+                  {botStatus.phone && (
+                    <p className="text-sm text-green-600 mt-2">
+                      <CheckCircle className="h-4 w-4 inline mr-1" />
+                      Conectado: {botStatus.phone}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Recent Logs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Logs do Sistema</CardTitle>
-              <CardDescription>Atividade recente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {logs.slice(0, 10).map((log) => (
-                  <div key={log.id} className={`text-sm p-2 rounded ${
-                    log.type === 'error' ? 'bg-red-100 text-red-800' :
-                    log.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                    log.type === 'success' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <span>{log.message}</span>
-                      <span className="text-xs opacity-60">
-                        {log.timestamp.toLocaleTimeString()}
-                      </span>
-                    </div>
+              {/* Exchange Rates */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cotações</CardTitle>
+                  <CardDescription>Valores editáveis - clique para alterar</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {exchangeRates.map((rate) => (
+                      <div key={rate.id} className="border rounded-lg p-3">
+                        {editingRate === rate.id && rateEditData ? (
+                          // Modo de edição
+                          <div className="space-y-3">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-blue-600 font-semibold">{rate.symbol}</span>
+                              </div>
+                              <p className="font-medium">{rate.currency}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <Label className="text-sm">Compra</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={rateEditData.buyRate}
+                                  onChange={(e) => updateRateEditData('buyRate', parseFloat(e.target.value))}
+                                  className="h-8"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-sm">Venda</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={rateEditData.sellRate}
+                                  onChange={(e) => updateRateEditData('sellRate', parseFloat(e.target.value))}
+                                  className="h-8"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex space-x-2">
+                              <Button onClick={handleSaveRate} size="sm" className="flex-1">
+                                <Save className="h-4 w-4 mr-1" />
+                                Salvar
+                              </Button>
+                              <Button onClick={handleCancelEditRate} variant="outline" size="sm" className="flex-1">
+                                <X className="h-4 w-4 mr-1" />
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          // Modo de visualização
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span className="text-blue-600 font-semibold">{rate.symbol}</span>
+                              </div>
+                              <div>
+                                <p className="font-medium">{rate.currency}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                              <div className="text-right">
+                                <p className="text-sm">
+                                  <span className="text-green-600">C: {rate.buyRate.toFixed(2)}</span>
+                                  {' | '}
+                                  <span className="text-red-600">V: {rate.sellRate.toFixed(2)}</span>
+                                </p>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditRate(rate)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
 
-        {/* Branches Section */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Filiais ({branches.length})</CardTitle>
-            <CardDescription>Gerenciamento de filiais</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-              {branches.map((branch) => (
-                <div key={branch.id} className="border rounded-lg p-4">
-                  {editingBranch === branch.id && branchEditData ? (
-                    // Modo de edição
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="name">Nome</Label>
-                        <Input
-                          id="name"
-                          value={branchEditData.name}
-                          onChange={(e) => updateBranchEditData('name', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Telefone</Label>
-                        <Input
-                          id="phone"
-                          value={branchEditData.phone}
-                          onChange={(e) => updateBranchEditData('phone', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="address">Endereço</Label>
-                        <Input
-                          id="address"
-                          value={branchEditData.address}
-                          onChange={(e) => updateBranchEditData('address', e.target.value)}
-                        />
-                      </div>
-
-                      <div className="space-y-3 text-sm">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Segunda a Sexta</Label>
-                          <Input
-                            type="text"
-                            value={branchEditData.hours.weekdays}
-                            onChange={(e) => updateBranchEditData('hours', {
-                              ...branchEditData.hours,
-                              weekdays: e.target.value
-                            })}
-                            placeholder="Ex: 08:00 às 18:00"
-                            className="h-8"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Sábado</Label>
-                          <Input
-                            type="text"
-                            value={branchEditData.hours.saturday}
-                            onChange={(e) => updateBranchEditData('hours', {
-                              ...branchEditData.hours,
-                              saturday: e.target.value
-                            })}
-                            placeholder="Ex: 09:00 às 15:00"
-                            className="h-8"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Domingo</Label>
-                          <Input
-                            type="text"
-                            value={branchEditData.hours.sunday}
-                            onChange={(e) => updateBranchEditData('hours', {
-                              ...branchEditData.hours,
-                              sunday: e.target.value
-                            })}
-                            placeholder="Ex: Fechado ou 10:00 às 14:00"
-                            className="h-8"
-                          />
+              {/* Recent Logs */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Logs do Sistema</CardTitle>
+                  <CardDescription>Atividade recente</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {logs.slice(0, 10).map((log) => (
+                      <div key={log.id} className={`text-sm p-2 rounded ${
+                        log.type === 'error' ? 'bg-red-100 text-red-800' :
+                        log.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                        log.type === 'success' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span>{log.message}</span>
+                          <span className="text-xs opacity-60">
+                            {log.timestamp.toLocaleTimeString()}
+                          </span>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                      <div className="flex space-x-2">
-                        <Button onClick={handleSaveBranch} size="sm" className="flex-1">
-                          <Save className="h-4 w-4 mr-1" />
-                          Salvar
-                        </Button>
-                        <Button onClick={handleCancelEditBranch} variant="outline" size="sm" className="flex-1">
-                          <X className="h-4 w-4 mr-1" />
-                          Cancelar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    // Modo de visualização
-                    <div>
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-2">
-                          <Building2 className="h-5 w-5 text-blue-600" />
-                          <h3 className="font-semibold">{branch.name}</h3>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditBranch(branch)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
+            {/* Branches Section */}
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Filiais ({branches.length})</CardTitle>
+                <CardDescription>Gerenciamento de filiais</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                  {branches.map((branch) => (
+                    <div key={branch.id} className="border rounded-lg p-4">
+                      {editingBranch === branch.id && branchEditData ? (
+                        // Modo de edição
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="name">Nome</Label>
+                            <Input
+                              id="name"
+                              value={branchEditData.name}
+                              onChange={(e) => updateBranchEditData('name', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="phone">Telefone</Label>
+                            <Input
+                              id="phone"
+                              value={branchEditData.phone}
+                              onChange={(e) => updateBranchEditData('phone', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="address">Endereço</Label>
+                            <Input
+                              id="address"
+                              value={branchEditData.address}
+                              onChange={(e) => updateBranchEditData('address', e.target.value)}
+                            />
+                          </div>
 
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex items-center space-x-2">
-                          <Phone className="h-4 w-4" />
-                          <span>{branch.phone}</span>
-                        </div>
-                        <div className="flex items-start space-x-2">
-                          <Building2 className="h-4 w-4 mt-0.5" />
-                          <span>{branch.address}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4" />
-                          <div className="text-xs">
-                            <div>Seg-Sex: {branch.hours.weekdays}</div>
-                            <div>Sáb: {branch.hours.saturday}</div>
-                            <div>Dom: {branch.hours.sunday}</div>
+                          <div className="space-y-3 text-sm">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Segunda a Sexta</Label>
+                              <Input
+                                type="text"
+                                value={branchEditData.hours.weekdays}
+                                onChange={(e) => updateBranchEditData('hours', {
+                                  ...branchEditData.hours,
+                                  weekdays: e.target.value
+                                })}
+                                placeholder="Ex: 08:00 às 18:00"
+                                className="h-8"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Sábado</Label>
+                              <Input
+                                type="text"
+                                value={branchEditData.hours.saturday}
+                                onChange={(e) => updateBranchEditData('hours', {
+                                  ...branchEditData.hours,
+                                  saturday: e.target.value
+                                })}
+                                placeholder="Ex: 09:00 às 15:00"
+                                className="h-8"
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Domingo</Label>
+                              <Input
+                                type="text"
+                                value={branchEditData.hours.sunday}
+                                onChange={(e) => updateBranchEditData('hours', {
+                                  ...branchEditData.hours,
+                                  sunday: e.target.value
+                                })}
+                                placeholder="Ex: Fechado ou 10:00 às 14:00"
+                                className="h-8"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex space-x-2">
+                            <Button onClick={handleSaveBranch} size="sm" className="flex-1">
+                              <Save className="h-4 w-4 mr-1" />
+                              Salvar
+                            </Button>
+                            <Button onClick={handleCancelEditBranch} variant="outline" size="sm" className="flex-1">
+                              <X className="h-4 w-4 mr-1" />
+                              Cancelar
+                            </Button>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        // Modo de visualização
+                        <div>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <Building2 className="h-5 w-5 text-blue-600" />
+                              <h3 className="font-semibold">{branch.name}</h3>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditBranch(branch)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <div className="flex items-center space-x-2">
+                              <Phone className="h-4 w-4" />
+                              <span>{branch.phone}</span>
+                            </div>
+                            <div className="flex items-start space-x-2">
+                              <Building2 className="h-4 w-4 mt-0.5" />
+                              <span>{branch.address}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Clock className="h-4 w-4" />
+                              <div className="text-xs">
+                                <div>Seg-Sex: {branch.hours.weekdays}</div>
+                                <div>Sáb: {branch.hours.saturday}</div>
+                                <div>Dom: {branch.hours.sunday}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Messages Tab */}
+        {activeTab === 'messages' && (
+          <MessagesManager />
+        )}
       </div>
     </div>
   );
