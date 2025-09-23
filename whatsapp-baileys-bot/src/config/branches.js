@@ -4,19 +4,19 @@ module.exports = {
       "id": "1",
       "name": "Fair Câmbio - São José",
       "phone": "(48) 9969-72142",
-      "address": "Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401, Brasil",
+      "address": "Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401",
       "hours": {
         "weekdays": "09:00 às 17:30",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/maps?q=-3.1319,-60.0231",
-      "googleMapsLink": "https://maps.google.com/maps?q=-3.1319,-60.0231",
+      "maps": "https://maps.google.com/maps?q=-27.5954,-48.5480",
+      "googleMapsLink": "https://maps.google.com/maps?q=-27.5954,-48.5480",
       "active": true,
       "priority": 1,
       "region": "centro",
       "manager": "João Silva",
-      "email": "matriz@faircambio.com.br",
+      "email": "saojose@faircambio.com.br",
       "features": [
         "exchange",
         "remittance",
@@ -38,21 +38,21 @@ module.exports = {
     },
     {
       "id": "2",
-      "name": "Fair Câmbio - Shopping Manauara",
-      "phone": "(92) 9928-72777",
-      "address": "Av. Mário Ypiranga, 1300 - Adrianópolis, Manaus/AM",
+      "name": "Fair Câmbio - Balneário Camboriú",
+      "phone": "(47) 9928-72777",
+      "address": "Av. Brasil, 1615 - Sala 22 - Centro, Balneário Camboriú - SC, 88330-048",
       "hours": {
-        "weekdays": "10:00 às 22:00",
-        "saturday": "10:00 às 22:00",
-        "sunday": "14:00 às 20:00"
+        "weekdays": "09:00 às 17:00",
+        "saturday": "09:00 às 12:00",
+        "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/maps?q=-3.1026,-60.0104",
-      "googleMapsLink": "https://maps.google.com/maps?q=-3.1026,-60.0104",
+      "maps": "https://maps.google.com/maps?q=-27.0006,-48.6262",
+      "googleMapsLink": "https://maps.google.com/maps?q=-27.0006,-48.6262",
       "active": true,
       "priority": 2,
-      "region": "zona-leste",
+      "region": "zona-centro",
       "manager": "Maria Santos",
-      "email": "manauara@faircambio.com.br",
+      "email": "bc@faircambio.com.br",
       "features": [
         "exchange",
         "consultation",
@@ -75,19 +75,19 @@ module.exports = {
       "id": "3",
       "name": "Fair Câmbio - Bombinhas",
       "phone": "(47) 9998-12517",
-      "address": "Anexo ao hotel morada da mar - Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000, Brasil",
+      "address": "Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000",
       "hours": {
         "weekdays": "09:00 às 17:00",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/maps?q=-3.0935,-60.0239",
-      "googleMapsLink": "https://maps.google.com/maps?q=-3.0935,-60.0239",
+      "maps": "https://maps.google.com/maps?q=-27.1486,-48.4814",
+      "googleMapsLink": "https://maps.google.com/maps?q=-27.1486,-48.4814",
       "active": true,
       "priority": 3,
-      "region": "zona-centro-sul",
+      "region": "zona-litoral",
       "manager": "Carlos Oliveira",
-      "email": "amazonas@faircambio.com.br",
+      "email": "bombinhas@faircambio.com.br",
       "features": [
         "exchange",
         "remittance",
@@ -108,21 +108,56 @@ module.exports = {
     },
     {
       "id": "4",
-      "name": "Fair Câmbio - Ponta Negra",
-      "phone": "(92) 9913-90101",
-      "address": "Av. Coronel Teixeira, 5705 - Ponta Negra, Manaus/AM",
+      "name": "Fair Câmbio - Brusque",
+      "phone": "(47) 9913-90101",
+      "address": "Rua Centro, 100 - Centro, Brusque - SC, 88350-000",
       "hours": {
-        "weekdays": "09:00 às 18:00",
-        "saturday": "09:00 às 14:00",
+        "weekdays": "09:00 às 17:00",
+        "saturday": "Fechado",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/maps?q=-3.0741,-60.1057",
-      "googleMapsLink": "https://maps.google.com/maps?q=-3.0741,-60.1057",
+      "maps": "https://maps.google.com/maps?q=-27.0981,-48.9158",
+      "googleMapsLink": "https://maps.google.com/maps?q=-27.0981,-48.9158",
       "active": true,
       "priority": 4,
-      "region": "zona-oeste",
+      "region": "zona-vale",
       "manager": "Ana Costa",
-      "email": "pontanegra@faircambio.com.br",
+      "email": "brusque@faircambio.com.br",
+      "features": [
+        "exchange",
+        "consultation",
+        "cards"
+      ],
+      "maxConnections": 25,
+      "autoRestart": true,
+      "healthCheck": {
+        "enabled": true,
+        "interval": 60000,
+        "timeout": 10000
+      },
+      "notifications": {
+        "startup": true,
+        "shutdown": true,
+        "errors": true
+      }
+    },
+    {
+      "id": "5",
+      "name": "Fair Câmbio - Criciúma",
+      "phone": "(48) 9985-65822",
+      "address": "R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250",
+      "hours": {
+        "weekdays": "09:00 às 17:00",
+        "saturday": "Fechado",
+        "sunday": "Fechado"
+      },
+      "maps": "https://maps.google.com/maps?q=-28.6774,-49.3695",
+      "googleMapsLink": "https://maps.google.com/maps?q=-28.6774,-49.3695",
+      "active": true,
+      "priority": 5,
+      "region": "zona-sul",
+      "manager": "Roberto Lima",
+      "email": "criciuma@faircambio.com.br",
       "features": [
         "exchange",
         "consultation",
