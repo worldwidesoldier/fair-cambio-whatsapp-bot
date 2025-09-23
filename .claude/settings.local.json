@@ -12,7 +12,8 @@
       "Bash(npm run dashboard:*)",
       "Bash(git add:*)",
       "Bash(git config:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

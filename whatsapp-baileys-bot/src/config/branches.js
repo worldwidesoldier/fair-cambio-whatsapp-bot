@@ -1,16 +1,17 @@
 module.exports = {
   "branches": [
     {
-      "id": "matriz",
-      "name": "Fair Câmbio -  São José",
-      "phone": "559185001234",
+      "id": "1",
+      "name": "Fair Câmbio - São José",
+      "phone": "(48) 9969-72142",
       "address": "Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401, Brasil",
       "hours": {
         "weekdays": "09:00 às 17:30",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/?q=-3.1319,-60.0231",
+      "maps": "https://maps.google.com/maps?q=-3.1319,-60.0231",
+      "googleMapsLink": "https://maps.google.com/maps?q=-3.1319,-60.0231",
       "active": true,
       "priority": 1,
       "region": "centro",
@@ -36,16 +37,17 @@ module.exports = {
       }
     },
     {
-      "id": "shopping-manauara",
+      "id": "2",
       "name": "Fair Câmbio - Shopping Manauara",
-      "phone": "559185002345",
+      "phone": "(92) 9928-72777",
       "address": "Av. Mário Ypiranga, 1300 - Adrianópolis, Manaus/AM",
       "hours": {
         "weekdays": "10:00 às 22:00",
         "saturday": "10:00 às 22:00",
         "sunday": "14:00 às 20:00"
       },
-      "maps": "https://maps.google.com/?q=-3.1026,-60.0104",
+      "maps": "https://maps.google.com/maps?q=-3.1026,-60.0104",
+      "googleMapsLink": "https://maps.google.com/maps?q=-3.1026,-60.0104",
       "active": true,
       "priority": 2,
       "region": "zona-leste",
@@ -70,16 +72,17 @@ module.exports = {
       }
     },
     {
-      "id": "amazonas-shopping",
+      "id": "3",
       "name": "Fair Câmbio - Bombinhas",
-      "phone": "+55 47 999812517",
-      "address": "Anexo ao hotel morada do mar - Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000, Brasil",
+      "phone": "(47) 9998-12517",
+      "address": "Anexo ao hotel morada da mar - Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000, Brasil",
       "hours": {
         "weekdays": "09:00 às 17:00",
         "saturday": "Fechado",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/?q=-3.0935,-60.0239",
+      "maps": "https://maps.google.com/maps?q=-3.0935,-60.0239",
+      "googleMapsLink": "https://maps.google.com/maps?q=-3.0935,-60.0239",
       "active": true,
       "priority": 3,
       "region": "zona-centro-sul",
@@ -104,16 +107,17 @@ module.exports = {
       }
     },
     {
-      "id": "ponta-negra",
+      "id": "4",
       "name": "Fair Câmbio - Ponta Negra",
-      "phone": "559185004567",
+      "phone": "(92) 9913-90101",
       "address": "Av. Coronel Teixeira, 5705 - Ponta Negra, Manaus/AM",
       "hours": {
         "weekdays": "09:00 às 18:00",
         "saturday": "09:00 às 14:00",
         "sunday": "Fechado"
       },
-      "maps": "https://maps.google.com/?q=-3.0741,-60.1057",
+      "maps": "https://maps.google.com/maps?q=-3.0741,-60.1057",
+      "googleMapsLink": "https://maps.google.com/maps?q=-3.0741,-60.1057",
       "active": true,
       "priority": 4,
       "region": "zona-oeste",
@@ -130,41 +134,6 @@ module.exports = {
         "enabled": true,
         "interval": 60000,
         "timeout": 10000
-      },
-      "notifications": {
-        "startup": true,
-        "shutdown": true,
-        "errors": true
-      }
-    },
-    {
-      "id": "aeroporto",
-      "name": "Fair Câmbio - Criciúma ",
-      "phone": "559185005678",
-      "address": "R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250, Brasil",
-      "hours": {
-        "weekdays": "09:00 às 17:00",
-        "saturday": "Fechado",
-        "sunday": "Fechado"
-      },
-      "maps": "https://maps.google.com/?q=-3.0386,-60.0497",
-      "active": true,
-      "priority": 5,
-      "region": "aeroporto",
-      "manager": "Roberto Lima",
-      "email": "aeroporto@faircambio.com.br",
-      "features": [
-        "exchange",
-        "remittance",
-        "consultation",
-        "express"
-      ],
-      "maxConnections": 60,
-      "autoRestart": true,
-      "healthCheck": {
-        "enabled": true,
-        "interval": 20000,
-        "timeout": 3000
       },
       "notifications": {
         "startup": true,

@@ -19,6 +19,8 @@ const MenuHandler = require('./handlers/menu');
 const AdminHandler = require('./handlers/admin');
 const SessionManager = require('./utils/session');
 const { formatPhoneNumber, createMessageHeader } = require('./utils/formatter');
+const CleanupService = require('./utils/cleanup-service');
+const PerformanceMonitor = require('./utils/performance-monitor');
 const io = require('socket.io-client');
 
 class WhatsAppBotEnhanced {
@@ -29,13 +31,61 @@ class WhatsAppBotEnhanced {
     this.sock = null;
     this.isConnected = false;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
+    this.maxReconnectAttempts = Infinity; // Infinite reconnection attempts
     this.dashboardSocket = null;
     this.connectionStartTime = null;
     this.lastDisconnectTime = null;
     this.reconnectTimeout = null;
     this.heartbeatInterval = null;
-    this.backoffDelays = [1000, 2000, 5000, 10000, 20000, 30000];
+    this.backoffDelays = [1000, 2000, 5000, 10000, 20000, 30000, 60000]; // Extended backoff delays
+
+    // Enhanced backoff with intelligent progression
+    this.baseDelay = 1000; // 1 second
+    this.maxDelay = 30000; // 30 seconds maximum
+    this.backoffMultiplier = 2;
+    this.consecutiveFailures = 0;
+    this.lastSuccessfulConnection = null;
+
+    // Connection tracking and fallback system
+    this.connectionHistory = [];
+    this.disconnectionReasons = new Map();
+    this.fallbackMethods = ['default', 'legacy', 'mobile'];
+    this.currentFallbackIndex = 0;
+
+    // Session management and corruption detection
+    this.sessionCorruptionIndicators = 0;
+    this.sessionPath = './sessions';
+    this.sessionBackupPath = './sessions-backup';
+    this.lastSessionCleanup = null;
+    this.autoRestartTimeout = null;
+    this.sessionCleanupTimeout = null;
+
+    // Memory management
+    this.memoryCleanupInterval = null;
+    this.lastMemoryCleanup = Date.now();
+    this.memoryThreshold = 150 * 1024 * 1024; // 150MB threshold
+
+    // Cleanup service
+    this.cleanupService = new CleanupService({
+      enableAutoCleanup: true,
+      logRetentionDays: 7,
+      sessionRetentionDays: 30,
+      cacheRetentionDays: 3,
+      maxLogFileSize: 50,
+      logsDir: './logs',
+      sessionsDir: './sessions',
+      backupDir: './sessions-backup'
+    });
+
+    // Performance monitor
+    this.performanceMonitor = new PerformanceMonitor({
+      memoryThresholdMB: 200,
+      cpuThresholdPercent: 80,
+      diskSpaceThresholdGB: 1,
+      enableAlerts: true,
+      logToFile: true,
+      logFilePath: './logs/performance.log'
+    });
 
     // Enhanced sync capabilities
     this.syncPort = process.env.BOT_SYNC_PORT || 3002;
@@ -48,12 +98,22 @@ class WhatsAppBotEnhanced {
     this.cachedBranches = null;
     this.cachedMessages = null;
     this.lastSyncUpdate = null;
+
+    // Initialize enhanced error handling
+    this.setupEnhancedErrorHandling();
+
+    // Schedule auto-restart (24 hours)
+    this.scheduleAutoRestart();
   }
 
   async initialize() {
     console.log(`🚀 Iniciando Fair Câmbio Bot Enhanced (ID: ${this.botId})...`);
 
     try {
+      // Start performance monitoring
+      this.performanceMonitor.setBotReference(this);
+      this.performanceMonitor.start();
+
       // Inicializar servidor de sincronização
       await this.initializeSyncServer();
 
@@ -68,6 +128,7 @@ class WhatsAppBotEnhanced {
       await this.connect();
     } catch (error) {
       console.error('❌ Erro na inicialização:', error);
+      this.performanceMonitor.recordError(error);
       process.exit(1);
     }
   }
@@ -86,12 +147,24 @@ class WhatsAppBotEnhanced {
     });
 
     // Health check
-    this.syncApp.get('/health', (req, res) => {
+    this.syncApp.get('/health', async (req, res) => {
+      const health = await this.performanceMonitor.performHealthCheck();
       res.json({
         botId: this.botId,
         status: this.isConnected ? 'connected' : 'disconnected',
         lastSync: this.lastSyncUpdate,
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        health: health
+      });
+    });
+
+    // Performance metrics endpoint
+    this.syncApp.get('/metrics', async (req, res) => {
+      const metrics = await this.performanceMonitor.getMetrics();
+      res.json({
+        botId: this.botId,
+        timestamp: new Date().toISOString(),
+        metrics: metrics
       });
     });
 
@@ -439,13 +512,44 @@ class WhatsAppBotEnhanced {
         logger: pino({ level: 'silent' }),
         browser: Browsers.macOS('Desktop'),
         syncFullHistory: false,
-        defaultQueryTimeoutMs: 20000,
+
+        // Optimized timeouts for stability
+        defaultQueryTimeoutMs: 60000,
         connectTimeoutMs: 60000,
-        keepAliveIntervalMs: 30000,
+        keepAliveIntervalMs: 10000,
+
+        // Connection optimization
         markOnlineOnConnect: true,
         emitOwnEvents: false,
         shouldIgnoreJid: jid => jid.includes('@broadcast'),
-        retryRequestDelayMs: 250
+        retryRequestDelayMs: 1000,
+
+        // Enhanced stability settings
+        experimentalStore: true,
+        timeRelease: 10000,
+
+        // Socket optimization
+        socketConfig: {
+          timeout: 60000,
+          keepAlive: true,
+          keepAliveInitialDelay: 10000
+        },
+
+        // Message handling optimization
+        shouldSyncHistoryMessage: () => false,
+        generateHighQualityLinkPreview: false,
+
+        // Performance settings
+        maxMsgRetryCount: 5,
+        msgRetryCounterCache: new Map(),
+
+        // Memory optimization
+        cachedGroupMetadata: new Map(),
+        shouldIgnoreJid: jid => {
+          if (jid.includes('@broadcast')) return true;
+          if (jid.includes('@newsletter')) return true;
+          return false;
+        }
       });
 
       this.sock.ev.on('creds.update', saveCreds);
@@ -524,8 +628,32 @@ class WhatsAppBotEnhanced {
 
     this.isConnected = true;
     this.reconnectAttempts = 0;
+    this.consecutiveFailures = 0; // Reset failure counter
+    this.lastSuccessfulConnection = Date.now(); // Track successful connection
+    this.sessionCorruptionIndicators = 0; // Reset corruption indicators
+
+    // Record successful connection
+    this.performanceMonitor.recordConnection(true, {
+      attempts: this.reconnectAttempts,
+      method: this.fallbackMethods[this.currentFallbackIndex]
+    });
 
     const phone = this.sock.user?.id || 'Conectado';
+
+    // Log connection history
+    this.connectionHistory.push({
+      timestamp: Date.now(),
+      success: true,
+      phone: phone,
+      attempt: this.reconnectAttempts
+    });
+
+    // Keep only last 10 connection records
+    if (this.connectionHistory.length > 10) {
+      this.connectionHistory = this.connectionHistory.slice(-10);
+    }
+
+    console.log(`📈 Conexão bem-sucedida após ${this.reconnectAttempts} tentativas`);
 
     // Enviar status de conexão para o backend
     this.sendConnectedStatus(phone);
@@ -539,6 +667,9 @@ class WhatsAppBotEnhanced {
 
     // Iniciar heartbeat
     this.startHeartbeat();
+
+    // Iniciar monitoramento de memória
+    this.startMemoryMonitoring();
   }
 
   sendConnectedStatus(phone) {
@@ -569,18 +700,139 @@ class WhatsAppBotEnhanced {
       this.heartbeatInterval = null;
     }
 
-    const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+    // Enhanced disconnect reason detection
+    const disconnectReason = this.analyzeDisconnectReason(lastDisconnect);
+    const shouldReconnect = this.shouldReconnectAfterDisconnect(disconnectReason);
 
-    console.log(`🔌 Desconectado. Reconectar: ${shouldReconnect}`);
+    console.log(`🔌 Desconectado. Motivo: ${disconnectReason.type} | Reconectar: ${shouldReconnect}`);
+    console.log(`📊 Detalhes: ${disconnectReason.description}`);
+
+    // Track disconnect reason for analytics
+    this.trackDisconnectReason(disconnectReason);
+
+    // Record failed connection
+    this.performanceMonitor.recordConnection(false, {
+      reason: disconnectReason.type,
+      attempts: this.reconnectAttempts
+    });
+
+    // Log disconnect to history
+    this.connectionHistory.push({
+      timestamp: Date.now(),
+      success: false,
+      reason: disconnectReason.type,
+      shouldReconnect: shouldReconnect
+    });
 
     // Atualizar status
     this.sendStatusUpdate({
       connected: false,
-      connectionStatus: 'disconnected'
+      connectionStatus: 'disconnected',
+      disconnectReason: disconnectReason.type
     });
 
     if (shouldReconnect) {
       this.scheduleReconnection();
+    } else {
+      console.log('🛑 Não reconectando devido ao tipo de desconexão:', disconnectReason.type);
+    }
+  }
+
+  analyzeDisconnectReason(lastDisconnect) {
+    if (!lastDisconnect?.error?.output?.statusCode) {
+      return {
+        type: 'unknown',
+        description: 'Desconexão sem código de status',
+        shouldReconnect: true
+      };
+    }
+
+    const statusCode = lastDisconnect.error.output.statusCode;
+
+    switch (statusCode) {
+      case DisconnectReason.badSession:
+        this.sessionCorruptionIndicators++;
+        return {
+          type: 'badSession',
+          description: 'Sessão corrompida ou inválida',
+          shouldReconnect: true
+        };
+
+      case DisconnectReason.connectionClosed:
+        return {
+          type: 'connectionClosed',
+          description: 'Conexão fechada pelo servidor',
+          shouldReconnect: true
+        };
+
+      case DisconnectReason.connectionLost:
+        return {
+          type: 'connectionLost',
+          description: 'Conexão perdida (rede)',
+          shouldReconnect: true
+        };
+
+      case DisconnectReason.connectionReplaced:
+        return {
+          type: 'connectionReplaced',
+          description: 'Conexão substituída por outra instância',
+          shouldReconnect: false
+        };
+
+      case DisconnectReason.loggedOut:
+        return {
+          type: 'loggedOut',
+          description: 'Usuário fez logout do WhatsApp',
+          shouldReconnect: false
+        };
+
+      case DisconnectReason.restartRequired:
+        return {
+          type: 'restartRequired',
+          description: 'Restart necessário',
+          shouldReconnect: true
+        };
+
+      case DisconnectReason.timedOut:
+        return {
+          type: 'timedOut',
+          description: 'Timeout de conexão',
+          shouldReconnect: true
+        };
+
+      default:
+        return {
+          type: 'other',
+          description: `Código desconhecido: ${statusCode}`,
+          shouldReconnect: true
+        };
+    }
+  }
+
+  shouldReconnectAfterDisconnect(disconnectReason) {
+    // Never reconnect for certain disconnect types
+    const noReconnectTypes = ['loggedOut', 'connectionReplaced'];
+
+    if (noReconnectTypes.includes(disconnectReason.type)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  trackDisconnectReason(reasonOrError) {
+    const reason = typeof reasonOrError === 'string' ? reasonOrError :
+                  reasonOrError?.type || 'unknown';
+
+    if (!this.disconnectionReasons.has(reason)) {
+      this.disconnectionReasons.set(reason, 0);
+    }
+
+    this.disconnectionReasons.set(reason, this.disconnectionReasons.get(reason) + 1);
+
+    // Log statistics periodically
+    if (this.disconnectionReasons.get(reason) % 5 === 0) {
+      console.log(`📊 Estatísticas de desconexão:`, Array.from(this.disconnectionReasons.entries()));
     }
   }
 
@@ -596,22 +848,108 @@ class WhatsAppBotEnhanced {
   }
 
   scheduleReconnection() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('❌ Máximo de tentativas de reconexão atingido');
-      return;
+    // INFINITE RECONNECTION - Never give up!
+    this.reconnectAttempts++;
+    this.consecutiveFailures++;
+
+    // Calculate intelligent backoff delay
+    const delay = this.calculateBackoffDelay();
+
+    // Log connection attempt info
+    const timeSinceLastSuccess = this.lastSuccessfulConnection
+      ? Date.now() - this.lastSuccessfulConnection
+      : 'never';
+
+    console.log(`🔄 Reagendando reconexão em ${delay}ms`);
+    console.log(`📊 Tentativa: ${this.reconnectAttempts} | Falhas consecutivas: ${this.consecutiveFailures}`);
+    console.log(`⏰ Última conexão bem-sucedida: ${timeSinceLastSuccess === 'never' ? 'nunca' : Math.round(timeSinceLastSuccess/1000) + 's atrás'}`);
+
+    // Check if session cleanup is needed
+    if (this.shouldCleanSession()) {
+      console.log('🧹 Iniciando limpeza de sessão corrompida...');
+      this.scheduleSessionCleanup();
     }
 
-    const delay = this.backoffDelays[Math.min(this.reconnectAttempts, this.backoffDelays.length - 1)];
-    this.reconnectAttempts++;
+    // Check if fallback method should be used
+    if (this.shouldUseFallback()) {
+      this.rotateFallbackMethod();
+    }
 
-    console.log(`🔄 Reagendando reconexão em ${delay}ms (tentativa ${this.reconnectAttempts})`);
-
-    this.reconnectTimeout = setTimeout(() => {
-      this.connect();
+    this.reconnectTimeout = setTimeout(async () => {
+      await this.reconnectWithBackoff();
     }, delay);
   }
 
+  calculateBackoffDelay() {
+    // Exponential backoff with jitter and max cap
+    const exponentialDelay = this.baseDelay * Math.pow(this.backoffMultiplier, Math.min(this.consecutiveFailures - 1, 5));
+    const cappedDelay = Math.min(exponentialDelay, this.maxDelay);
+
+    // Add jitter to prevent thundering herd
+    const jitter = Math.random() * 1000;
+
+    return Math.floor(cappedDelay + jitter);
+  }
+
+  shouldCleanSession() {
+    // Clean session if:
+    // 1. Too many consecutive failures (> 15)
+    // 2. Connection attempts span more than 10 minutes
+    // 3. Specific disconnect reasons indicate corruption
+
+    if (this.consecutiveFailures > 15) {
+      console.log('🧹 Limpeza necessária: muitas falhas consecutivas');
+      return true;
+    }
+
+    if (this.connectionStartTime && (Date.now() - this.connectionStartTime) > 600000) {
+      console.log('🧹 Limpeza necessária: tentativas por mais de 10 minutos');
+      return true;
+    }
+
+    if (this.sessionCorruptionIndicators > 3) {
+      console.log('🧹 Limpeza necessária: indicadores de corrupção de sessão');
+      return true;
+    }
+
+    return false;
+  }
+
+  shouldUseFallback() {
+    // Use fallback every 10 consecutive failures
+    return this.consecutiveFailures > 0 && this.consecutiveFailures % 10 === 0;
+  }
+
+  rotateFallbackMethod() {
+    this.currentFallbackIndex = (this.currentFallbackIndex + 1) % this.fallbackMethods.length;
+    const method = this.fallbackMethods[this.currentFallbackIndex];
+    console.log(`🔄 Alternando para método de conexão: ${method}`);
+  }
+
+  async reconnectWithBackoff() {
+    try {
+      console.log(`🔌 Tentativa de reconexão #${this.reconnectAttempts}`);
+
+      // Try current fallback method
+      await this.connectWithMethod(this.fallbackMethods[this.currentFallbackIndex]);
+
+    } catch (error) {
+      console.error(`❌ Falha na reconexão #${this.reconnectAttempts}:`, error.message);
+
+      // Track disconnect reason
+      this.trackDisconnectReason(error);
+
+      // Record error in performance monitor
+      this.performanceMonitor.recordError(error);
+
+      // Schedule next attempt
+      this.scheduleReconnection();
+    }
+  }
+
   async handleMessage(message) {
+    const startTime = Date.now();
+
     try {
       const text = message.message?.conversation ||
                    message.message?.extendedTextMessage?.text ||
@@ -624,6 +962,9 @@ class WhatsAppBotEnhanced {
 
       console.log(`📨 Mensagem de ${senderName}: ${text}`);
 
+      // Record message received
+      this.performanceMonitor.recordMessage();
+
       // Usar dados do cache se disponível, senão usar dados padrão
       const response = await this.menuHandler.handleMessage(text, {
         rates: this.cachedRates,
@@ -634,10 +975,15 @@ class WhatsAppBotEnhanced {
       if (response) {
         await this.sock.sendMessage(sender, { text: response });
         console.log(`📤 Resposta enviada para ${senderName}`);
+
+        // Record response time
+        const responseTime = Date.now() - startTime;
+        this.performanceMonitor.recordResponse(responseTime);
       }
 
     } catch (error) {
       console.error('❌ Erro ao processar mensagem:', error);
+      this.performanceMonitor.recordError(error);
     }
   }
 
@@ -677,6 +1023,486 @@ class WhatsAppBotEnhanced {
       this.connect();
     }, 2000);
   }
+
+  // ==================== SESSION MANAGEMENT ====================
+
+  async scheduleSessionCleanup() {
+    if (this.sessionCleanupTimeout) {
+      clearTimeout(this.sessionCleanupTimeout);
+    }
+
+    this.sessionCleanupTimeout = setTimeout(async () => {
+      await this.cleanCorruptedSession();
+    }, 5000); // Wait 5 seconds before cleaning
+  }
+
+  async cleanCorruptedSession() {
+    console.log('🧹 Iniciando limpeza de sessão corrompida...');
+
+    try {
+      // Backup current session before cleaning
+      await this.backupSession();
+
+      // Remove current session files
+      await this.removeSessionFiles();
+
+      // Reset corruption indicators
+      this.sessionCorruptionIndicators = 0;
+      this.lastSessionCleanup = Date.now();
+
+      console.log('✅ Sessão corrompida limpa com sucesso');
+
+      // Reset connection counters to give fresh start
+      this.consecutiveFailures = Math.floor(this.consecutiveFailures / 2);
+
+    } catch (error) {
+      console.error('❌ Erro ao limpar sessão corrompida:', error);
+    }
+  }
+
+  async backupSession() {
+    try {
+      const sessionExists = await this.fileExists(this.sessionPath);
+      if (!sessionExists) return;
+
+      // Create backup directory
+      await fs.mkdir(this.sessionBackupPath, { recursive: true });
+
+      // Copy session files to backup
+      const backupTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupPath = path.join(this.sessionBackupPath, `session_backup_${backupTimestamp}`);
+
+      await fs.mkdir(backupPath, { recursive: true });
+
+      // Copy all session files
+      const sessionFiles = await fs.readdir(this.sessionPath);
+      for (const file of sessionFiles) {
+        const srcPath = path.join(this.sessionPath, file);
+        const destPath = path.join(backupPath, file);
+        await fs.copyFile(srcPath, destPath);
+      }
+
+      console.log(`💾 Sessão backup criado em: ${backupPath}`);
+
+      // Keep only last 5 backups
+      await this.cleanOldBackups();
+
+    } catch (error) {
+      console.log('⚠️ Erro ao fazer backup da sessão:', error.message);
+    }
+  }
+
+  async removeSessionFiles() {
+    try {
+      const sessionExists = await this.fileExists(this.sessionPath);
+      if (!sessionExists) return;
+
+      const sessionFiles = await fs.readdir(this.sessionPath);
+      for (const file of sessionFiles) {
+        const filePath = path.join(this.sessionPath, file);
+        await fs.unlink(filePath);
+      }
+
+      console.log('🗑️ Arquivos de sessão removidos');
+
+    } catch (error) {
+      console.log('⚠️ Erro ao remover arquivos de sessão:', error.message);
+    }
+  }
+
+  async cleanOldBackups() {
+    try {
+      const backupExists = await this.fileExists(this.sessionBackupPath);
+      if (!backupExists) return;
+
+      const backups = await fs.readdir(this.sessionBackupPath);
+      if (backups.length <= 5) return;
+
+      // Sort by creation time and remove oldest
+      const backupDetails = await Promise.all(
+        backups.map(async (backup) => {
+          const backupPath = path.join(this.sessionBackupPath, backup);
+          const stats = await fs.stat(backupPath);
+          return { name: backup, path: backupPath, created: stats.birthtimeMs };
+        })
+      );
+
+      backupDetails.sort((a, b) => a.created - b.created);
+
+      // Remove oldest backups (keep only last 5)
+      const toRemove = backupDetails.slice(0, -5);
+      for (const backup of toRemove) {
+        await fs.rmdir(backup.path, { recursive: true });
+        console.log(`🗑️ Backup antigo removido: ${backup.name}`);
+      }
+
+    } catch (error) {
+      console.log('⚠️ Erro ao limpar backups antigos:', error.message);
+    }
+  }
+
+  // ==================== FALLBACK CONNECTION METHODS ====================
+
+  async connectWithMethod(method) {
+    console.log(`🔌 Conectando com método: ${method}`);
+
+    switch (method) {
+      case 'default':
+        return await this.connect();
+
+      case 'legacy':
+        return await this.connectWithLegacyConfig();
+
+      case 'mobile':
+        return await this.connectWithMobileConfig();
+
+      default:
+        return await this.connect();
+    }
+  }
+
+  async connectWithLegacyConfig() {
+    try {
+      console.log('🔐 Carregando sessão (modo legado)...');
+      const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+
+      this.sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,
+        logger: pino({ level: 'silent' }),
+        browser: Browsers.ubuntu('Chrome'), // Different browser
+        syncFullHistory: false,
+
+        // Legacy timeouts
+        defaultQueryTimeoutMs: 30000,
+        connectTimeoutMs: 30000,
+        keepAliveIntervalMs: 25000,
+
+        // Basic settings
+        markOnlineOnConnect: false,
+        emitOwnEvents: false,
+        shouldIgnoreJid: jid => jid.includes('@broadcast'),
+        retryRequestDelayMs: 500
+      });
+
+      this.sock.ev.on('creds.update', saveCreds);
+      this.setupEventHandlers();
+
+      this.connectionStartTime = Date.now();
+      console.log('🔌 Conectando ao WhatsApp (modo legado)...');
+
+    } catch (error) {
+      console.error('❌ Erro na conexão legada:', error);
+      throw error;
+    }
+  }
+
+  async connectWithMobileConfig() {
+    try {
+      console.log('🔐 Carregando sessão (modo móvel)...');
+      const { state, saveCreds } = await useMultiFileAuthState('./sessions');
+
+      this.sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,
+        logger: pino({ level: 'silent' }),
+        browser: Browsers.macOS('Safari'), // Mobile-like browser
+        syncFullHistory: false,
+
+        // Mobile-optimized timeouts
+        defaultQueryTimeoutMs: 45000,
+        connectTimeoutMs: 45000,
+        keepAliveIntervalMs: 20000,
+
+        // Mobile settings
+        markOnlineOnConnect: true,
+        emitOwnEvents: false,
+        shouldIgnoreJid: jid => jid.includes('@broadcast'),
+        retryRequestDelayMs: 750,
+
+        // Reduced performance for stability
+        maxMsgRetryCount: 3,
+        cachedGroupMetadata: new Map()
+      });
+
+      this.sock.ev.on('creds.update', saveCreds);
+      this.setupEventHandlers();
+
+      this.connectionStartTime = Date.now();
+      console.log('🔌 Conectando ao WhatsApp (modo móvel)...');
+
+    } catch (error) {
+      console.error('❌ Erro na conexão móvel:', error);
+      throw error;
+    }
+  }
+
+  // ==================== AUTO-RESTART SYSTEM ====================
+
+  scheduleAutoRestart() {
+    // Schedule restart every 24 hours
+    const RESTART_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+
+    this.autoRestartTimeout = setTimeout(() => {
+      this.performScheduledRestart();
+    }, RESTART_INTERVAL);
+
+    const restartTime = new Date(Date.now() + RESTART_INTERVAL);
+    console.log(`⏰ Auto-restart agendado para: ${restartTime.toLocaleString()}`);
+  }
+
+  async performScheduledRestart() {
+    console.log('🔄 Executando restart automático programado...');
+
+    try {
+      // Notify about scheduled restart
+      this.sendStatusUpdate({
+        connectionStatus: 'restarting',
+        reason: 'scheduled_restart'
+      });
+
+      // Graceful disconnect
+      await this.disconnect();
+
+      // Clear all timers
+      this.clearAllTimers();
+
+      // Wait before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Perform memory cleanup
+      this.performMemoryCleanup();
+
+      // Reconnect
+      await this.connect();
+
+      // Schedule next restart
+      this.scheduleAutoRestart();
+
+      console.log('✅ Restart automático concluído');
+
+    } catch (error) {
+      console.error('❌ Erro no restart automático:', error);
+      // Fallback to normal reconnection
+      this.scheduleReconnection();
+    }
+  }
+
+  // ==================== MEMORY MANAGEMENT ====================
+
+  startMemoryMonitoring() {
+    this.memoryCleanupInterval = setInterval(() => {
+      this.checkMemoryUsage();
+    }, 60000); // Check every minute
+
+    console.log('🧠 Monitoramento de memória iniciado');
+  }
+
+  checkMemoryUsage() {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
+
+    console.log(`🧠 Memória: ${heapUsedMB.toFixed(2)}MB heap, ${(memUsage.rss / 1024 / 1024).toFixed(2)}MB RSS`);
+
+    // Force garbage collection if memory usage is high
+    if (memUsage.heapUsed > this.memoryThreshold) {
+      console.log('⚠️ Uso de memória alto, executando limpeza...');
+      this.performMemoryCleanup();
+    }
+
+    // Periodic cleanup every 30 minutes
+    if (Date.now() - this.lastMemoryCleanup > 1800000) {
+      this.performPeriodicCleanup();
+    }
+  }
+
+  performMemoryCleanup() {
+    try {
+      // Clear message cache if exists
+      if (this.sock && this.sock.msgRetryCounterCache) {
+        this.sock.msgRetryCounterCache.clear();
+      }
+
+      // Clear cached metadata
+      if (this.sock && this.sock.cachedGroupMetadata) {
+        this.sock.cachedGroupMetadata.clear();
+      }
+
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+        console.log('🗑️ Garbage collection executado');
+      }
+
+      this.lastMemoryCleanup = Date.now();
+
+      const memUsage = process.memoryUsage();
+      console.log(`✅ Limpeza de memória concluída: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)}MB`);
+
+    } catch (error) {
+      console.error('❌ Erro na limpeza de memória:', error);
+    }
+  }
+
+  performPeriodicCleanup() {
+    console.log('🧹 Executando limpeza periódica...');
+
+    // Clear any accumulated logs in memory
+    this.clearLogBuffers();
+
+    // Reset connection metrics
+    this.resetConnectionMetrics();
+
+    // Perform memory cleanup
+    this.performMemoryCleanup();
+
+    console.log('✅ Limpeza periódica concluída');
+  }
+
+  clearLogBuffers() {
+    // Clear any internal log buffers if they exist
+    if (this.sock && this.sock._logBuffer) {
+      this.sock._logBuffer = [];
+    }
+  }
+
+  resetConnectionMetrics() {
+    // Reset connection attempt counters periodically
+    if (this.reconnectAttempts > 50) {
+      this.reconnectAttempts = 0;
+      console.log('🔄 Contador de reconexão resetado');
+    }
+  }
+
+  // ==================== ENHANCED ERROR HANDLING ====================
+
+  setupEnhancedErrorHandling() {
+    // Uncaught exception handler
+    process.on('uncaughtException', (error) => {
+      console.error('❌ Exceção não capturada:', error);
+      console.log('🔄 Tentando recuperação automática...');
+
+      // Try to gracefully recover
+      setTimeout(() => {
+        this.performEmergencyRestart();
+      }, 5000);
+    });
+
+    // Unhandled promise rejection handler
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('❌ Promise rejeitada não tratada:', reason);
+      console.log('🔄 Continuando execução...');
+    });
+
+    // Memory warning handler
+    process.on('warning', (warning) => {
+      if (warning.name === 'MaxListenersExceededWarning') {
+        console.warn('⚠️ Muitos listeners detectados, limpando...');
+        this.cleanupEventListeners();
+      }
+    });
+  }
+
+  async performEmergencyRestart() {
+    console.log('🚨 Executando reinicialização de emergência...');
+
+    try {
+      await this.disconnect();
+
+      // Clear all intervals and timeouts
+      this.clearAllTimers();
+
+      // Wait before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 10000));
+
+      // Reconnect
+      await this.connect();
+
+      console.log('✅ Reinicialização de emergência concluída');
+    } catch (error) {
+      console.error('❌ Falha na reinicialização de emergência:', error);
+      process.exit(1);
+    }
+  }
+
+  clearAllTimers() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    if (this.memoryCleanupInterval) {
+      clearInterval(this.memoryCleanupInterval);
+      this.memoryCleanupInterval = null;
+    }
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+  }
+
+  cleanupEventListeners() {
+    if (this.sock && this.sock.ev) {
+      // Remove excess listeners
+      const events = ['connection.update', 'messages.upsert', 'creds.update'];
+      events.forEach(event => {
+        const listeners = this.sock.ev.listeners(event);
+        if (listeners.length > 5) {
+          console.log(`🧹 Limpando ${listeners.length - 1} listeners em excesso para ${event}`);
+          this.sock.ev.removeAllListeners(event);
+          // Re-add only the essential listeners
+          this.setupEventHandlers();
+        }
+      });
+    }
+  }
+
+  // ==================== GRACEFUL SHUTDOWN ====================
+
+  async gracefulShutdown() {
+    console.log('🛑 Iniciando encerramento gracioso...');
+
+    try {
+      // Stop performance monitor
+      if (this.performanceMonitor) {
+        this.performanceMonitor.stop();
+        console.log('✅ Monitor de performance parado');
+      }
+
+      // Stop cleanup service
+      if (this.cleanupService) {
+        await this.cleanupService.stop();
+        console.log('✅ Serviço de limpeza parado');
+      }
+
+      // Disconnect from WhatsApp
+      await this.disconnect();
+      console.log('✅ Desconectado do WhatsApp');
+
+      // Close sync server
+      if (this.syncServer) {
+        this.syncServer.close();
+        console.log('✅ Servidor de sincronização fechado');
+      }
+
+      // Disconnect from dashboard
+      if (this.dashboardSocket) {
+        this.dashboardSocket.disconnect();
+        console.log('✅ Desconectado do dashboard');
+      }
+
+      // Final memory cleanup
+      this.performMemoryCleanup();
+
+      console.log('✅ Encerramento gracioso concluído');
+      process.exit(0);
+
+    } catch (error) {
+      console.error('❌ Erro no encerramento gracioso:', error);
+      process.exit(1);
+    }
+  }
 }
 
 // Inicializar bot se executado diretamente
@@ -690,11 +1516,12 @@ if (require.main === module) {
   // Graceful shutdown
   process.on('SIGINT', async () => {
     console.log('\n🛑 Encerrando bot...');
-    await bot.disconnect();
-    if (bot.syncServer) {
-      bot.syncServer.close();
-    }
-    process.exit(0);
+    await bot.gracefulShutdown();
+  });
+
+  process.on('SIGTERM', async () => {
+    console.log('\n🛑 Encerrando bot (SIGTERM)...');
+    await bot.gracefulShutdown();
   });
 }
 

@@ -129,7 +129,12 @@ const createLocationMessage = (branches) => {
     message += `⏰ Seg-Sex: ${branch.hours.weekdays}\n`;
     message += `⏰ Sábado: ${branch.hours.saturday}\n`;
     message += `⏰ Domingo: ${branch.hours.sunday}\n`;
-    message += `🗺️ ${branch.maps}\n\n`;
+    // Usar googleMapsLink se disponível, senão usar maps
+    const mapLink = branch.googleMapsLink || branch.maps;
+    if (mapLink) {
+      message += `🗺️ ${mapLink}\n`;
+    }
+    message += `\n`;
   });
 
   return message;

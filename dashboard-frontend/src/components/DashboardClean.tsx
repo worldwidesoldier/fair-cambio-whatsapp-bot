@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import {
   MessageSquare, Users, Activity, Smartphone, RefreshCw,
   Edit, Save, X, Building2, Clock, Phone,
-  CheckCircle, BarChart3, FileText
+  CheckCircle, BarChart3, FileText, Shield
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import MessagesManager from './MessagesManager';
+import HealthDashboard from './HealthDashboard';
 import { io } from 'socket.io-client';
 
 interface BotStatus {
@@ -81,7 +82,7 @@ export default function DashboardClean() {
   const socketRef = useRef<any>(null);
 
   // Estado das abas
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'messages'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'messages' | 'health'>('dashboard');
 
   // Conectar WebSocket simples
   const connectWebSocket = () => {
@@ -379,6 +380,19 @@ export default function DashboardClean() {
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4" />
                   <span>Mensagens</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('health')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'health'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4" />
+                  <span>Health Monitor</span>
                 </div>
               </button>
             </nav>
@@ -713,6 +727,11 @@ export default function DashboardClean() {
         {/* Messages Tab */}
         {activeTab === 'messages' && (
           <MessagesManager />
+        )}
+
+        {/* Health Monitor Tab */}
+        {activeTab === 'health' && (
+          <HealthDashboard />
         )}
       </div>
     </div>

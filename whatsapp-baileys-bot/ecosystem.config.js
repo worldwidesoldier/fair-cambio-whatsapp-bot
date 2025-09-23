@@ -1,12 +1,77 @@
 module.exports = {
   apps: [
+    // Enhanced Bot Configuration - Optimized for Long-term Stability
+    {
+      name: 'fair-cambio-bot-enhanced',
+      script: './src/bot-enhanced.js',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+
+      // Enhanced memory management
+      max_memory_restart: '200M',
+
+      // Environment configuration
+      env: {
+        NODE_ENV: 'development',
+        BOT_SYNC_PORT: 3002,
+        LOG_LEVEL: 'info'
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        BOT_SYNC_PORT: 3002,
+        LOG_LEVEL: 'warn'
+      },
+
+      // Enhanced logging
+      log_file: './logs/enhanced-combined.log',
+      out_file: './logs/enhanced-out.log',
+      error_file: './logs/enhanced-error.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+
+      // Stability optimizations
+      autorestart: true,
+      max_restarts: 15, // More restart attempts
+      min_uptime: '10s',
+      restart_delay: 4000,
+      exponential_backoff_restart_delay: 100,
+
+      // Process management
+      kill_timeout: 5000,
+      listen_timeout: 8000,
+      wait_ready: true,
+      shutdown_with_message: true,
+
+      // Node.js optimizations for stability
+      node_args: [
+        '--max-old-space-size=256',
+        '--optimize-for-size',
+        '--expose-gc', // Enable manual garbage collection
+        '--gc-interval=100'
+      ],
+
+      // Monitoring and health checks
+      pmx: true,
+      health_check_grace_period: 3000,
+
+      // Auto-restart schedule (daily at 3 AM)
+      cron_restart: '0 3 * * *',
+
+      // Watch exclusions
+      ignore_watch: ['node_modules', 'logs', 'sessions', 'sessions-backup']
+    },
+
+    // Multi-branch configuration (legacy support)
     {
       name: 'fair-cambio-multi-branch',
       script: './src/multi-branch.js',
-      instances: 1, // Apenas uma instância para gerenciar todas as filiais
+      instances: 1,
       exec_mode: 'fork',
-      watch: false, // Desabilitado para produção
+      watch: false,
       max_memory_restart: '1G',
+      autorestart: false, // Disabled by default in favor of enhanced bot
+
       env: {
         NODE_ENV: 'production',
         LOG_LEVEL: 'info',
@@ -19,12 +84,13 @@ module.exports = {
         ENABLE_MONITORING_API: 'true',
         MONITORING_PORT: '3001'
       },
-      log_file: './logs/combined.log',
-      out_file: './logs/out.log',
-      error_file: './logs/error.log',
+
+      log_file: './logs/multi-combined.log',
+      out_file: './logs/multi-out.log',
+      error_file: './logs/multi-error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
-      autorestart: true,
+
       max_restarts: 5,
       min_uptime: '30s',
       restart_delay: 5000,

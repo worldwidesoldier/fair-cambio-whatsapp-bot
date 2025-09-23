@@ -60,54 +60,47 @@ let currentBranches = [
     id: '1',
     name: 'Fair Câmbio - São José',
     phone: '(48) 9969-72142',
-    address: 'Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401',
+    address: 'Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401, Brasil',
+    googleMapsLink: 'https://maps.google.com/maps?q=-3.1319,-60.0231',
     hours: {
-      weekdays: '09:00 - 17:30',
+      weekdays: '09:00 às 17:30',
       saturday: 'Fechado',
       sunday: 'Fechado'
     }
   },
   {
     id: '2',
-    name: 'Fair Câmbio - Balneário Camboriú',
-    phone: '(47) 9928-72777',
-    address: 'Av. Brasil, 1615 - Sala 22 - Centro, Balneário Camboriú - SC, 88330-048',
+    name: 'Fair Câmbio - Shopping Manauara',
+    phone: '(92) 9928-72777',
+    address: 'Av. Mário Ypiranga, 1300 - Adrianópolis, Manaus/AM',
+    googleMapsLink: 'https://maps.google.com/maps?q=-3.1026,-60.0104',
     hours: {
-      weekdays: '09:00 - 17:00',
-      saturday: '09:00 - 12:00',
-      sunday: 'Fechado'
+      weekdays: '10:00 às 22:00',
+      saturday: '10:00 às 22:00',
+      sunday: '14:00 às 20:00'
     }
   },
   {
     id: '3',
     name: 'Fair Câmbio - Bombinhas',
     phone: '(47) 9998-12517',
-    address: 'Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000',
+    address: 'Anexo ao hotel morada da mar - Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000, Brasil',
+    googleMapsLink: 'https://maps.google.com/maps?q=-3.0935,-60.0239',
     hours: {
-      weekdays: '09:00 - 17:00',
+      weekdays: '09:00 às 17:00',
       saturday: 'Fechado',
       sunday: 'Fechado'
     }
   },
   {
     id: '4',
-    name: 'Fair Câmbio - Brusque',
-    phone: '(47) 9913-90101',
-    address: 'Rua Centro, 100 - Centro, Brusque - SC, 88350-000',
+    name: 'Fair Câmbio - Ponta Negra',
+    phone: '(92) 9913-90101',
+    address: 'Av. Coronel Teixeira, 5705 - Ponta Negra, Manaus/AM',
+    googleMapsLink: 'https://maps.google.com/maps?q=-3.0741,-60.1057',
     hours: {
-      weekdays: '09:00 - 17:00',
-      saturday: 'Fechado',
-      sunday: 'Fechado'
-    }
-  },
-  {
-    id: '5',
-    name: 'Fair Câmbio - Criciúma',
-    phone: '(48) 9985-65822',
-    address: 'R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250',
-    hours: {
-      weekdays: '09:00 - 17:00',
-      saturday: 'Fechado',
+      weekdays: '09:00 às 18:00',
+      saturday: '09:00 às 14:00',
       sunday: 'Fechado'
     }
   }
@@ -137,8 +130,10 @@ app.post('/api/bot-update', (req, res) => {
     botStatus.connectionStatus = 'qr';
 
     // Enviar para todos os clientes do dashboard
+    console.log(`📡 ENVIANDO QR CODE VIA WEBSOCKET para ${io.engine.clientsCount} clientes`);
     io.emit('qrCode', data);
     io.emit('botStatus', botStatus);
+    console.log(`✅ QR CODE ENVIADO VIA WEBSOCKET`);
   }
 
   if (method === 'setBotConnected' && data) {

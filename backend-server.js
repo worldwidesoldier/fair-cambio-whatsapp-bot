@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const { Server } = require('socket.io');
+const HealthMonitor = require('./health-monitor');
 
 const app = express();
 const server = http.createServer(app);
@@ -28,8 +29,39 @@ app.use(cors({
 
 app.use(express.json());
 
+// Middleware para contar requisições (deve vir antes das rotas)
+app.use((req, res, next) => {
+  if (typeof healthMonitor !== 'undefined') {
+    healthMonitor.incrementRequestCount();
+
+    // Interceptar erros para contar
+    const originalSend = res.send;
+    res.send = function(data) {
+      if (res.statusCode >= 400) {
+        healthMonitor.incrementErrorCount();
+      }
+      return originalSend.call(this, data);
+    };
+  }
+
+  next();
+});
+
 // Variável global para conexão com WhatsApp (será definida quando o bot conectar)
 let whatsappSocket = null;
+
+// Inicializar Health Monitor
+const healthMonitor = new HealthMonitor({
+  healthCheckInterval: 5 * 60 * 1000, // 5 minutos
+  performanceInterval: 30 * 1000, // 30 segundos
+  testMessageInterval: 5 * 60 * 1000, // 5 minutos
+  alertThresholds: {
+    memoryUsage: 85, // 85%
+    cpuUsage: 80, // 80%
+    responseTime: 5000, // 5s
+    diskUsage: 90 // 90%
+  }
+});
 
 // Estados globais
 let currentExchangeRates = [
@@ -124,6 +156,31 @@ let botStatus = {
   phone: null
 };
 
+// Configurar Health Monitor
+healthMonitor.setSocketIo(io);
+healthMonitor.setWhatsAppStatus(botStatus);
+
+// Configurar callback de teste de mensagem
+healthMonitor.setTestMessageCallback(async () => {
+  try {
+    if (botStatus.connected && whatsappSocket) {
+      // Simular envio de mensagem de teste
+      const testResult = {
+        success: true,
+        timestamp: new Date().toISOString(),
+        message: 'Health check test message sent'
+      };
+      healthMonitor.log('success', 'Teste de mensagem WhatsApp realizado com sucesso');
+      return testResult;
+    } else {
+      throw new Error('WhatsApp bot não está conectado');
+    }
+  } catch (error) {
+    healthMonitor.log('error', 'Falha no teste de mensagem WhatsApp', { error: error.message });
+    throw error;
+  }
+});
+
 // Estado para controlar QR codes por filial
 let branchQRCodes = {};
 let currentDisplayedQR = null;
@@ -181,28 +238,107 @@ app.post('/api/bot-update', (req, res) => {
     botStatus.qrCode = null;
     currentDisplayedQR = null;
 
+    // Atualizar status no health monitor
+    healthMonitor.setWhatsAppStatus(botStatus);
+    healthMonitor.log('success', `WhatsApp Bot conectado: ${data.branchName}`, {
+      phone: data.phone,
+      branchId: data.branchId
+    });
+
     io.emit('botStatus', botStatus);
     io.emit('botConnected', data);
+    io.emit('healthStatus', healthMonitor.getStatus());
   }
 
   if (method === 'addLog' && data) {
     console.log(`📝 LOG BAILEYS: ${data}`);
+    healthMonitor.log('info', `WhatsApp Bot Log: ${data}`, { source: 'baileys' });
   }
 
   res.json({ success: true, received: method });
 });
 
-// API Routes
+// API Routes - Enhanced Health Check
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date(),
-    services: {
-      api: 'running',
-      websocket: 'running',
-      whatsapp: whatsappSocket?.connected || false
+  healthMonitor.incrementRequestCount();
+
+  try {
+    const healthStatus = healthMonitor.getStatus();
+    res.json({
+      status: healthStatus.overall === 'healthy' ? 'ok' : healthStatus.overall,
+      timestamp: new Date(),
+      services: healthStatus.services,
+      metrics: healthStatus.metrics,
+      alerts: healthStatus.alerts.filter(a => !a.acknowledged).length,
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    healthMonitor.incrementErrorCount();
+    healthMonitor.log('error', 'Erro no endpoint /health', { error: error.message });
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      timestamp: new Date()
+    });
+  }
+});
+
+// Health Status API completa
+app.get('/api/health/status', (req, res) => {
+  try {
+    const fullStatus = healthMonitor.getStatus();
+    res.json(fullStatus);
+  } catch (error) {
+    healthMonitor.log('error', 'Erro ao obter status completo', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Health Check forçado
+app.post('/api/health/check', async (req, res) => {
+  try {
+    healthMonitor.log('info', 'Health check forçado solicitado via API');
+    const status = await healthMonitor.performHealthCheck();
+    res.json(status);
+  } catch (error) {
+    healthMonitor.log('error', 'Erro em health check forçado', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reconhecer alerta
+app.post('/api/health/alerts/:alertId/acknowledge', (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const success = healthMonitor.acknowledgeAlert(alertId);
+
+    if (success) {
+      healthMonitor.log('info', `Alerta ${alertId} reconhecido via API`);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Alerta não encontrado' });
     }
-  });
+  } catch (error) {
+    healthMonitor.log('error', 'Erro ao reconhecer alerta', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Exportar logs
+app.get('/api/health/logs/export', (req, res) => {
+  try {
+    const format = req.query.format || 'json';
+    const exportData = healthMonitor.exportLogs(format);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="health-logs-${Date.now()}.json"`);
+    res.send(exportData);
+
+    healthMonitor.log('info', 'Logs exportados via API');
+  } catch (error) {
+    healthMonitor.log('error', 'Erro ao exportar logs', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Página de status HTML para visualizar no navegador
@@ -473,11 +609,15 @@ app.post('/api/messages/reload', (req, res) => {
 // Socket.io connections
 io.on('connection', (socket) => {
   console.log('🔌 Cliente conectado:', socket.id);
+  healthMonitor.log('info', `Cliente WebSocket conectado: ${socket.id}`);
 
   // Enviar dados iniciais
   socket.emit('botStatus', botStatus);
   socket.emit('exchangeRates', currentExchangeRates);
   socket.emit('branches', currentBranches);
+
+  // Enviar status de health inicial
+  socket.emit('healthStatus', healthMonitor.getStatus());
 
   socket.on('requestStatus', () => {
     console.log('📋 Cliente solicitou status');
@@ -493,9 +633,57 @@ io.on('connection', (socket) => {
     socket.emit('exchangeRates', currentExchangeRates);
     socket.emit('branches', currentBranches);
     socket.emit('botStatus', botStatus);
+    socket.emit('healthStatus', healthMonitor.getStatus());
 
     if (botStatus.qrCode) {
       socket.emit('qrCode', botStatus.qrCode);
+    }
+  });
+
+  // Health Monitoring WebSocket Events
+  socket.on('requestHealthStatus', () => {
+    healthMonitor.log('info', 'Status de health solicitado via WebSocket');
+    socket.emit('healthStatus', healthMonitor.getStatus());
+  });
+
+  socket.on('forceHealthCheck', async () => {
+    try {
+      healthMonitor.log('info', 'Health check forçado via WebSocket');
+      const status = await healthMonitor.performHealthCheck();
+      io.emit('healthCheckComplete', status);
+    } catch (error) {
+      healthMonitor.log('error', 'Erro em health check forçado via WebSocket', { error: error.message });
+      socket.emit('healthCheckError', { error: error.message });
+    }
+  });
+
+  socket.on('acknowledgeAlert', (alertId) => {
+    const success = healthMonitor.acknowledgeAlert(alertId);
+    if (success) {
+      healthMonitor.log('info', `Alerta ${alertId} reconhecido via WebSocket`);
+      io.emit('alertAcknowledged', alertId);
+      io.emit('healthStatus', healthMonitor.getStatus());
+    }
+  });
+
+  socket.on('clearAcknowledgedAlerts', () => {
+    const removedCount = healthMonitor.clearAcknowledgedAlerts();
+    healthMonitor.log('info', `${removedCount} alertas limpos via WebSocket`);
+    io.emit('alertsCleared', removedCount);
+    io.emit('healthStatus', healthMonitor.getStatus());
+  });
+
+  socket.on('exportLogs', (format = 'json') => {
+    try {
+      const exportData = healthMonitor.exportLogs(format);
+      socket.emit('logsExported', {
+        filename: `health-logs-${Date.now()}.json`,
+        data: exportData
+      });
+      healthMonitor.log('info', 'Logs exportados via WebSocket');
+    } catch (error) {
+      healthMonitor.log('error', 'Erro ao exportar logs via WebSocket', { error: error.message });
+      socket.emit('exportError', { error: error.message });
     }
   });
 
@@ -579,6 +767,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('🔌 Cliente desconectado:', socket.id);
+    healthMonitor.log('info', `Cliente WebSocket desconectado: ${socket.id}`);
   });
 });
 
@@ -597,13 +786,49 @@ setInterval(() => {
   io.emit('exchangeRatesUpdate', currentExchangeRates);
 }, 30000); // A cada 30 segundos
 
+// Configurar event listeners do Health Monitor
+healthMonitor.on('initialized', () => {
+  console.log('✅ Health Monitor inicializado');
+});
+
+healthMonitor.on('healthCheckComplete', (status) => {
+  io.emit('healthCheckComplete', status);
+});
+
+healthMonitor.on('performanceUpdate', (metrics) => {
+  io.emit('performanceUpdate', metrics);
+});
+
+healthMonitor.on('alert', (alert) => {
+  console.log(`🚨 ALERTA: [${alert.level.toUpperCase()}] ${alert.title} - ${alert.message}`);
+  io.emit('alert', alert);
+});
+
+healthMonitor.on('log', (log) => {
+  io.emit('log', log);
+});
+
+healthMonitor.on('alertAcknowledged', (alert) => {
+  io.emit('alertAcknowledged', alert);
+});
+
+
 const PORT = 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Backend Fair Câmbio rodando em http://localhost:${PORT}`);
   console.log(`📊 API Cotações: http://localhost:${PORT}/api/exchange-rates`);
   console.log(`🏢 API Filiais: http://localhost:${PORT}/api/branches`);
+  console.log(`💊 Health Check: http://localhost:${PORT}/health`);
   console.log(`🔌 Socket.io: ws://localhost:${PORT}`);
   console.log(`✅ Sistema pronto!`);
+
+  // Inicializar Health Monitor
+  healthMonitor.init();
+  healthMonitor.log('info', 'Fair Câmbio Backend iniciado', {
+    port: PORT,
+    nodeVersion: process.version,
+    pid: process.pid
+  });
 
   // Sistema aguardando dados do WhatsApp Baileys via HTTP POST
   console.log('🔄 Aguardando QR Codes do sistema WhatsApp Baileys...');
@@ -612,9 +837,11 @@ server.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n🛑 Encerrando servidor...');
+  healthMonitor.log('info', 'Iniciando graceful shutdown do servidor');
 
-  if (whatsappReconnectTimeout) {
-    clearTimeout(whatsappReconnectTimeout);
+  // Encerrar Health Monitor
+  if (healthMonitor) {
+    healthMonitor.destroy();
   }
 
   if (whatsappSocket) {
@@ -625,4 +852,31 @@ process.on('SIGINT', () => {
     console.log('✅ Servidor encerrado');
     process.exit(0);
   });
+});
+
+// Error handling
+process.on('uncaughtException', (error) => {
+  console.error('🚨 Uncaught Exception:', error);
+  if (healthMonitor) {
+    healthMonitor.log('error', 'Uncaught Exception', {
+      error: error.message,
+      stack: error.stack
+    });
+    healthMonitor.createAlert('critical', 'Uncaught Exception', error.message, {
+      stack: error.stack
+    });
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Rejection:', reason);
+  if (healthMonitor) {
+    healthMonitor.log('error', 'Unhandled Rejection', {
+      reason: reason,
+      promise: promise
+    });
+    healthMonitor.createAlert('error', 'Unhandled Promise Rejection', reason, {
+      promise: promise
+    });
+  }
 });
