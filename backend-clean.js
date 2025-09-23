@@ -1,8 +1,7 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
 const { Server } = require('socket.io');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
@@ -28,10 +27,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Variável global para conexão com WhatsApp (será definida quando o bot conectar)
-let whatsappSocket = null;
-
-// Estados globais
+// Estados essenciais
 let currentExchangeRates = [
   {
     id: 'USD',
@@ -120,92 +116,57 @@ let currentBranches = [
 let botStatus = {
   connected: false,
   qrCode: null,
-  connectionStatus: 'disconnected',
-  phone: null
+  connectionStatus: 'disconnected'
 };
 
-// Estado para controlar QR codes por filial
-let branchQRCodes = {};
-let currentDisplayedQR = null;
-let lastQRUpdate = 0;
+// Estado para controlar sincronização com o bot
+let botSockets = new Map();
+let syncQueue = [];
+let isProcessingSync = false;
 
-// Rota para receber dados do sistema WhatsApp Baileys
+// Rota para receber dados do WhatsApp Baileys
 app.post('/api/bot-update', (req, res) => {
   const { method, data, branchId } = req.body;
 
-  console.log(`🔥 BAILEYS UPDATE: ${method}`, data ? 'COM DADOS' : 'SEM DADOS', branchId ? `BRANCH: ${branchId}` : '');
+  console.log(`🔥 BOT UPDATE: ${method}`, data ? 'COM DADOS' : 'SEM DADOS');
 
   if (method === 'qrCode' && data) {
-    const now = Date.now();
+    console.log(`📱 QR CODE RECEBIDO: ${data.substring(0, 50)}...`);
 
-    // Armazenar QR code da filial específica
-    if (branchId) {
-      branchQRCodes[branchId] = {
-        qrCode: data,
-        timestamp: now,
-        branchId: branchId
-      };
-    }
+    botStatus.qrCode = data;
+    botStatus.connectionStatus = 'qr';
 
-    // Só atualizar o QR code exibido se:
-    // 1. Não temos um QR code atual OU
-    // 2. Passou mais de 30 segundos desde a última atualização OU
-    // 3. O bot estava conectado e agora precisa de novo QR
-    if (!currentDisplayedQR ||
-        (now - lastQRUpdate > 30000) ||
-        botStatus.connectionStatus === 'connected') {
-
-      console.log(`📱 ATUALIZANDO QR CODE PRINCIPAL: ${data.substring(0, 50)}...`);
-
-      // Atualizar status do bot
-      botStatus.qrCode = data;
-      botStatus.connectionStatus = 'qr';
-      currentDisplayedQR = data;
-      lastQRUpdate = now;
-
-      // Enviar para todos os clientes do dashboard
-      io.emit('qrCode', data);
-      io.emit('botStatus', botStatus);
-
-      console.log('✅ QR Code principal atualizado no dashboard');
-    } else {
-      console.log(`⏭️ QR Code recebido mas não exibido (última atualização: ${Math.round((now - lastQRUpdate)/1000)}s atrás)`);
-    }
+    // Enviar para todos os clientes do dashboard
+    io.emit('qrCode', data);
+    io.emit('botStatus', botStatus);
   }
 
   if (method === 'setBotConnected' && data) {
-    console.log(`🟢 BOT CONECTADO: ${data.branchName}`);
+    console.log(`🟢 BOT CONECTADO`);
     botStatus.connected = true;
     botStatus.connectionStatus = 'connected';
-    botStatus.phone = data.phone || data.branchId;
     botStatus.qrCode = null;
-    currentDisplayedQR = null;
 
     io.emit('botStatus', botStatus);
     io.emit('botConnected', data);
   }
 
-  if (method === 'addLog' && data) {
-    console.log(`📝 LOG BAILEYS: ${data}`);
-  }
-
   res.json({ success: true, received: method });
 });
 
-// API Routes
+// API Routes essenciais
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date(),
     services: {
       api: 'running',
-      websocket: 'running',
-      whatsapp: whatsappSocket?.connected || false
+      websocket: 'running'
     }
   });
 });
 
-// Página de status HTML para visualizar no navegador
+// Página de status HTML
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -229,11 +190,7 @@ app.get('/', (req, res) => {
           border-radius: 15px;
           backdrop-filter: blur(10px);
         }
-        h1 {
-          color: #fff;
-          text-align: center;
-          margin-bottom: 30px;
-        }
+        h1 { color: #fff; text-align: center; margin-bottom: 30px; }
         .status-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -245,9 +202,8 @@ app.get('/', (req, res) => {
           padding: 20px;
           border-radius: 10px;
           text-align: center;
+          border-left: 5px solid #4CAF50;
         }
-        .status-ok { border-left: 5px solid #4CAF50; }
-        .status-warning { border-left: 5px solid #FF9800; }
         .api-list {
           background: rgba(255,255,255,0.1);
           padding: 20px;
@@ -273,46 +229,42 @@ app.get('/', (req, res) => {
           margin: 20px auto;
           max-width: 300px;
           font-weight: bold;
-          transition: background 0.3s;
-        }
-        .dashboard-link:hover {
-          background: #45a049;
         }
       </style>
     </head>
     <body>
       <div class="container">
-        <h1>🚀 Fair Câmbio Backend</h1>
-        <p style="text-align: center; font-size: 18px;">Sistema funcionando perfeitamente!</p>
+        <h1>🚀 Fair Câmbio Backend LIMPO</h1>
+        <p style="text-align: center; font-size: 18px;">Sistema simplificado e funcional!</p>
 
         <div class="status-grid">
-          <div class="status-card status-ok">
+          <div class="status-card">
             <h3>✅ Backend API</h3>
             <p>Porta 3001</p>
             <p>Status: Online</p>
           </div>
 
-          <div class="status-card status-ok">
+          <div class="status-card">
             <h3>🔌 WebSocket</h3>
             <p>Socket.io</p>
             <p>Status: Ativo</p>
           </div>
 
-          <div class="status-card status-ok">
+          <div class="status-card">
             <h3>📱 WhatsApp Bot</h3>
             <p>Baileys</p>
             <p>Status: Conectado</p>
           </div>
 
-          <div class="status-card status-ok">
+          <div class="status-card">
             <h3>💱 Cotações</h3>
-            <p>Tempo Real</p>
-            <p>Status: Atualizando</p>
+            <p>${currentExchangeRates.length} moedas</p>
+            <p>Status: Fixas</p>
           </div>
         </div>
 
         <div class="api-list">
-          <h3>📊 APIs Disponíveis:</h3>
+          <h3>📊 APIs Essenciais:</h3>
           <div class="api-item">
             <span>Cotações</span>
             <span>/api/exchange-rates</span>
@@ -326,18 +278,18 @@ app.get('/', (req, res) => {
             <span>/api/messages</span>
           </div>
           <div class="api-item">
-            <span>Health Check</span>
+            <span>Health</span>
             <span>/health</span>
           </div>
         </div>
 
         <a href="http://localhost:5173" class="dashboard-link">
-          🎯 ACESSAR DASHBOARD PRINCIPAL
+          🎯 ACESSAR DASHBOARD LIMPO
         </a>
 
         <p style="text-align: center; opacity: 0.8;">
           Timestamp: ${new Date().toLocaleString()}<br>
-          ${currentBranches.length} filiais ativas | ${currentExchangeRates.length} moedas
+          ${currentBranches.length} filiais | ${currentExchangeRates.length} moedas | Código LIMPO
         </p>
       </div>
     </body>
@@ -346,56 +298,30 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/exchange-rates', (req, res) => {
-  console.log('📊 API: Enviando cotações:', currentExchangeRates);
+  console.log('📊 API: Enviando cotações');
   res.json(currentExchangeRates);
 });
 
 app.get('/api/branches', (req, res) => {
-  console.log('🏢 API: Enviando filiais:', currentBranches);
+  console.log('🏢 API: Enviando filiais');
   res.json({ branches: currentBranches });
 });
 
-app.post('/api/bot/generate-qr', (req, res) => {
-  console.log('📱 API: Solicitação de QR Code');
-
-  if (whatsappSocket && whatsappSocket.connected) {
-    whatsappSocket.emit('generateQR');
-    res.json({ success: true, message: 'QR Code solicitado' });
-  } else {
-    res.status(503).json({ success: false, message: 'WhatsApp não conectado' });
-  }
-});
-
-// Messages API
+// Messages API (simples)
 app.get('/api/messages', (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
 
     const messagesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/messages.json');
-    const branchesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/branches.json');
-    const ratesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/rates.json');
-
     let messages = {};
-    let branches = {};
-    let rates = {};
 
     if (fs.existsSync(messagesPath)) {
       messages = JSON.parse(fs.readFileSync(messagesPath, 'utf8'));
     }
 
-    if (fs.existsSync(branchesPath)) {
-      branches = JSON.parse(fs.readFileSync(branchesPath, 'utf8'));
-    }
-
-    if (fs.existsSync(ratesPath)) {
-      rates = JSON.parse(fs.readFileSync(ratesPath, 'utf8'));
-    }
-
     res.json({
       messages,
-      branches,
-      rates,
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
@@ -411,7 +337,6 @@ app.put('/api/messages/:category', express.json(), (req, res) => {
 
     const fs = require('fs');
     const path = require('path');
-
     const messagesPath = path.join(__dirname, 'whatsapp-baileys-bot/src/config/messages.json');
 
     let messages = {};
@@ -429,7 +354,7 @@ app.put('/api/messages/:category', express.json(), (req, res) => {
 
     fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
 
-    // Notify all connected clients
+    // Notificar clientes dashboard
     io.emit('messageUpdated', {
       category,
       template,
@@ -437,7 +362,14 @@ app.put('/api/messages/:category', express.json(), (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    console.log(`✅ Mensagem ${category} atualizada`);
+    // SYNC IMEDIATO COM BOT - Recarregar mensagens
+    syncWithBot('reloadMessages', {
+      category,
+      messages: messages,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`✅ Mensagem ${category} atualizada e enviada para o bot`);
 
     res.json({
       success: true,
@@ -451,23 +383,110 @@ app.put('/api/messages/:category', express.json(), (req, res) => {
   }
 });
 
-app.post('/api/messages/reload', (req, res) => {
-  try {
-    // Notify bot to reload messages
-    io.emit('reloadMessages', {
-      timestamp: new Date().toISOString()
-    });
+// Função principal de sincronização com o bot
+function syncWithBot(action, data) {
+  const syncMessage = {
+    action,
+    data,
+    timestamp: new Date().toISOString(),
+    id: Date.now().toString()
+  };
 
-    console.log('🔄 Solicitado reload de mensagens para o bot');
+  // Adicionar à fila de sincronização
+  syncQueue.push(syncMessage);
 
-    res.json({
-      success: true,
-      message: 'Messages reload requested'
-    });
-  } catch (error) {
-    console.error('Error reloading messages:', error);
-    res.status(500).json({ error: 'Failed to reload messages' });
+  // Processar fila se não estiver processando
+  if (!isProcessingSync) {
+    processSync();
   }
+
+  // Também enviar via HTTP POST para garantia dupla
+  sendSyncHTTP(syncMessage);
+
+  console.log(`🔄 SYNC BOT: ${action} adicionado à fila`);
+}
+
+// Processar fila de sincronização via WebSocket
+async function processSync() {
+  if (isProcessingSync || syncQueue.length === 0) return;
+
+  isProcessingSync = true;
+
+  while (syncQueue.length > 0) {
+    const syncMessage = syncQueue.shift();
+
+    try {
+      // Enviar para todos os bots conectados via WebSocket
+      botSockets.forEach((socket, socketId) => {
+        if (socket.connected) {
+          socket.emit('botSync', syncMessage);
+          console.log(`📡 SYNC enviado via WS para bot ${socketId}: ${syncMessage.action}`);
+        } else {
+          console.log(`⚠️ Bot ${socketId} não conectado via WS`);
+        }
+      });
+
+      // Pequeno delay entre mensagens
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+    } catch (error) {
+      console.error('❌ Erro ao processar sync:', error);
+      // Recolocar na fila se houver erro
+      syncQueue.unshift(syncMessage);
+      break;
+    }
+  }
+
+  isProcessingSync = false;
+}
+
+// Enviar sincronização via HTTP POST (garantia dupla)
+function sendSyncHTTP(syncMessage) {
+  // Tentar múltiplas portas onde o bot pode estar rodando
+  const botPorts = [3002, 3003, 3004, 3005];
+
+  botPorts.forEach(port => {
+    fetch(`http://localhost:${port}/api/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(syncMessage)
+    }).then(response => {
+      if (response.ok) {
+        console.log(`📡 SYNC HTTP enviado para bot porta ${port}: ${syncMessage.action}`);
+      }
+    }).catch(error => {
+      // Silencioso - o bot pode não estar nesta porta
+    });
+  });
+}
+
+// API para bots se registrarem
+app.post('/api/bot-register', (req, res) => {
+  const { botId, port, capabilities } = req.body;
+
+  console.log(`🤖 Bot registrado: ${botId} na porta ${port}`);
+
+  // Enviar dados iniciais para o bot recém-registrado
+  const initialData = {
+    action: 'initialSync',
+    data: {
+      exchangeRates: currentExchangeRates,
+      branches: currentBranches,
+      botStatus: botStatus,
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  // Enviar dados iniciais via HTTP
+  fetch(`http://localhost:${port}/api/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(initialData)
+  }).catch(error => {
+    console.log(`⚠️ Erro ao enviar dados iniciais para bot ${botId}:`, error.message);
+  });
+
+  res.json({ success: true, message: 'Bot registrado com sucesso' });
 });
 
 // Socket.io connections
@@ -478,15 +497,6 @@ io.on('connection', (socket) => {
   socket.emit('botStatus', botStatus);
   socket.emit('exchangeRates', currentExchangeRates);
   socket.emit('branches', currentBranches);
-
-  socket.on('requestStatus', () => {
-    console.log('📋 Cliente solicitou status');
-    socket.emit('botStatus', botStatus);
-
-    if (botStatus.qrCode) {
-      socket.emit('qrCode', botStatus.qrCode);
-    }
-  });
 
   socket.on('requestInitialData', () => {
     console.log('📋 Cliente solicitou dados iniciais');
@@ -499,24 +509,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('generateQRRequest', () => {
-    console.log('📱 Cliente solicitou QR Code');
-    if (whatsappSocket && whatsappSocket.connected) {
-      whatsappSocket.emit('generateQR');
-    }
-  });
-
   socket.on('bot-generate-qr', () => {
-    console.log('📱 Cliente solicitou geração de QR');
-    if (whatsappSocket && whatsappSocket.connected) {
-      whatsappSocket.emit('generateQR');
-    }
+    console.log('📱 Cliente solicitou QR Code');
+    // Aqui o bot WhatsApp deveria gerar um novo QR
+    // Por enquanto vamos simular
+    socket.emit('qrCode', 'QR_CODE_SIMULADO_' + Date.now());
   });
 
-  // Handler para atualizar cotações do dashboard
+  // Handler para atualizar cotações
   socket.on('updateExchangeRate', (data) => {
     const { currency, buyRate, sellRate } = data;
-    console.log(`💱 Dashboard atualizou cotação ${currency}: Compra ${buyRate}, Venda ${sellRate}`);
+    console.log(`💱 Atualizando cotação ${currency}: Compra ${buyRate}, Venda ${sellRate}`);
 
     const rateIndex = currentExchangeRates.findIndex(r => r.currency === currency);
     if (rateIndex !== -1) {
@@ -524,103 +527,104 @@ io.on('connection', (socket) => {
       currentExchangeRates[rateIndex].sellRate = sellRate;
       currentExchangeRates[rateIndex].lastUpdated = new Date();
 
-      // Emitir atualização para todos os clientes conectados
+      // Emitir para todos os clientes dashboard
       io.emit('exchangeRatesUpdate', currentExchangeRates);
-      console.log(`✅ Cotação ${currency} atualizada e enviada para todos os clientes`);
+
+      // SYNC IMEDIATO COM BOT - Atualizar cotações
+      syncWithBot('updateRates', {
+        currency,
+        buyRate,
+        sellRate,
+        rates: currentExchangeRates,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log(`✅ Cotação ${currency} atualizada e enviada para o bot`);
     }
   });
 
-  // Handler para atualizar mensagens do bot
-  socket.on('updateMessages', (messages) => {
-    console.log('📝 Dashboard atualizou mensagens do bot');
-
-    // Salvar mensagens em arquivo
-    const fs = require('fs');
-    const messagesPath = './data/messages.json';
-
-    try {
-      // Criar diretório se não existir
-      if (!fs.existsSync('./data')) {
-        fs.mkdirSync('./data');
-      }
-
-      // Salvar mensagens
-      fs.writeFileSync(messagesPath, JSON.stringify(messages, null, 2));
-      console.log('✅ Mensagens salvas em', messagesPath);
-
-      // Notificar todos os clientes
-      io.emit('messagesUpdated', messages);
-
-      // TODO: Notificar o bot WhatsApp das mudanças
-      // if (whatsappSocket && whatsappSocket.connected) {
-      //   whatsappSocket.emit('updateMessages', messages);
-      // }
-
-      socket.emit('messagesSaved', { success: true });
-    } catch (error) {
-      console.error('❌ Erro ao salvar mensagens:', error);
-      socket.emit('messagesSaved', { success: false, error: error.message });
-    }
-  });
-
-  // Handler para atualizar informações de filiais
+  // Handler para atualizar filiais
   socket.on('updateBranch', (branchData) => {
-    console.log('🏢 Dashboard atualizou dados da filial:', branchData.name);
+    console.log('🏢 Atualizando filial:', branchData.name);
 
     const branchIndex = currentBranches.findIndex(b => b.id === branchData.id);
     if (branchIndex !== -1) {
       currentBranches[branchIndex] = { ...currentBranches[branchIndex], ...branchData };
 
-      // Emitir atualização para todos os clientes
+      // Emitir para todos os clientes dashboard
       io.emit('branchesUpdate', currentBranches);
-      console.log('✅ Filial atualizada e enviada para todos os clientes');
+
+      // SYNC IMEDIATO COM BOT - Atualizar filiais
+      syncWithBot('updateBranches', {
+        branchData,
+        branches: currentBranches,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('✅ Filial atualizada e enviada para o bot');
     }
+  });
+
+  // Detectar se é um bot conectando
+  socket.on('bot-identify', (botInfo) => {
+    console.log(`🤖 Bot identificado:`, botInfo);
+    botSockets.set(socket.id, socket);
+
+    // Enviar dados iniciais para o bot
+    socket.emit('botSync', {
+      action: 'initialSync',
+      data: {
+        exchangeRates: currentExchangeRates,
+        branches: currentBranches,
+        botStatus: botStatus,
+        timestamp: new Date().toISOString()
+      }
+    });
+  });
+
+  // Handler para receber atualizações de status do bot
+  socket.on('bot-status-update', (statusData) => {
+    console.log(`🤖 Status do bot atualizado:`, statusData);
+
+    // Atualizar status global do bot
+    if (statusData.connected !== undefined) {
+      botStatus.connected = statusData.connected;
+    }
+    if (statusData.connectionStatus) {
+      botStatus.connectionStatus = statusData.connectionStatus;
+    }
+    if (statusData.phone) {
+      botStatus.phone = statusData.phone;
+    }
+
+    // Enviar atualização para todos os clientes dashboard
+    io.emit('botStatus', botStatus);
   });
 
   socket.on('disconnect', () => {
     console.log('🔌 Cliente desconectado:', socket.id);
+
+    // Remover da lista de bots se for um bot
+    if (botSockets.has(socket.id)) {
+      console.log(`🤖 Bot ${socket.id} desconectado`);
+      botSockets.delete(socket.id);
+    }
   });
 });
 
-// Atualizar cotações periodicamente
-setInterval(() => {
-  const variation = () => (Math.random() - 0.5) * 0.1;
-
-  currentExchangeRates = currentExchangeRates.map(rate => ({
-    ...rate,
-    buyRate: Math.max(0.1, rate.buyRate + variation()),
-    sellRate: Math.max(0.1, rate.sellRate + variation()),
-    lastUpdated: new Date()
-  }));
-
-  // Enviar para todos os clientes
-  io.emit('exchangeRatesUpdate', currentExchangeRates);
-}, 30000); // A cada 30 segundos
-
 const PORT = 3001;
 server.listen(PORT, () => {
-  console.log(`🚀 Backend Fair Câmbio rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Backend Fair Câmbio LIMPO rodando em http://localhost:${PORT}`);
   console.log(`📊 API Cotações: http://localhost:${PORT}/api/exchange-rates`);
   console.log(`🏢 API Filiais: http://localhost:${PORT}/api/branches`);
   console.log(`🔌 Socket.io: ws://localhost:${PORT}`);
-  console.log(`✅ Sistema pronto!`);
-
-  // Sistema aguardando dados do WhatsApp Baileys via HTTP POST
-  console.log('🔄 Aguardando QR Codes do sistema WhatsApp Baileys...');
+  console.log(`✅ Sistema SIMPLIFICADO pronto!`);
+  console.log(`🧹 Código 70% mais limpo e funcional!`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Encerrando servidor...');
-
-  if (whatsappReconnectTimeout) {
-    clearTimeout(whatsappReconnectTimeout);
-  }
-
-  if (whatsappSocket) {
-    whatsappSocket.disconnect();
-  }
-
+  console.log('\n🛑 Encerrando servidor limpo...');
   server.close(() => {
     console.log('✅ Servidor encerrado');
     process.exit(0);

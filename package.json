@@ -1,7 +1,21 @@
 {
+  "name": "whatsbot-faircambio-enhanced",
+  "version": "1.0.0",
+  "description": "Enhanced WhatsApp Bot with real-time dashboard sync",
+  "main": "backend-clean.js",
+  "scripts": {
+    "start": "node backend-clean.js",
+    "backend": "node backend-clean.js",
+    "bot": "node whatsapp-baileys-bot/src/bot-enhanced.js",
+    "dashboard": "cd dashboard-frontend && npm run dev",
+    "dev": "concurrently \"npm run backend\" \"npm run dashboard\"",
+    "dev-all": "concurrently \"npm run backend\" \"npm run bot\" \"npm run dashboard\""
+  },
   "dependencies": {
+    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
   }

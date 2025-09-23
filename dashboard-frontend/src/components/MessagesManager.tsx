@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  MessageSquare, Edit, Save, X, RefreshCw, Eye, Copy,
+  Edit, Save, X, RefreshCw, Eye, Copy,
   CheckCircle, AlertCircle, Clock, FileText, Phone,
   MapPin, DollarSign, Users, Settings, Smartphone
 } from 'lucide-react';
@@ -35,18 +35,18 @@ interface MessageCategory {
 
 const messageCategories: MessageCategory[] = [
   {
-    id: 'welcome',
-    title: 'Boas-vindas',
-    description: 'Primeira mensagem quando cliente inicia conversa',
-    icon: <MessageSquare className="h-4 w-4" />,
-    color: 'bg-green-500'
-  },
-  {
     id: 'menu',
     title: 'Menu Principal',
-    description: 'Menu de opções do bot',
+    description: 'Menu de opções do bot (resposta padrão)',
     icon: <Settings className="h-4 w-4" />,
     color: 'bg-blue-500'
+  },
+  {
+    id: 'rates',
+    title: 'Taxas de Hoje',
+    description: 'Cotações atuais das moedas (opção 1)',
+    icon: <DollarSign className="h-4 w-4" />,
+    color: 'bg-green-500'
   },
   {
     id: 'hours',
@@ -70,9 +70,9 @@ const messageCategories: MessageCategory[] = [
     color: 'bg-purple-500'
   },
   {
-    id: 'purchase_process',
-    title: 'Processo de Compra',
-    description: 'Como funciona a compra de moedas',
+    id: 'western_union',
+    title: 'Western Union',
+    description: 'Remessas internacionais Western Union (opção 5)',
     icon: <DollarSign className="h-4 w-4" />,
     color: 'bg-emerald-500'
   },

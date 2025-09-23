@@ -122,35 +122,20 @@ class MenuHandler {
 
     // Verifica comandos numéricos do menu
     if (/^[1-6]$/.test(text)) {
-      // Não mostra menu novamente, apenas responde diretamente
       return this.handleMenuOption(parseInt(text), userId, currentBranch);
     }
 
-    // Verifica se é mensagem de menu/saudação
-    if (this.keywords.menu.some(word => text.includes(word))) {
-      if (this.shouldShowMenu(userId)) {
-        this.markMenuAsSeen(userId);
-        return createMenuMessage(currentBranch);
-      } else {
-        // Usuário já viu menu, resposta mais direta
-        return "👋 Como posso ajudar?\n\n💡 _Digite o número da opção desejada (1-6)_";
-      }
-    }
-
-    // Verifica outras palavras-chave (sem mostrar menu)
+    // Verifica outras palavras-chave específicas ANTES do menu
     for (const [category, words] of Object.entries(this.keywords)) {
       if (category !== 'menu' && category !== 'wait' && words.some(word => text.includes(word))) {
         return this.handleKeyword(category, userId, currentBranch);
       }
     }
 
-    // Resposta padrão (sugere menu apenas se não viu)
-    if (this.shouldShowMenu(userId)) {
-      this.markMenuAsSeen(userId);
-      return createMenuMessage(currentBranch);
-    }
-
-    return "❓ Não entendi. Digite o número da opção desejada (1-6) ou 'menu' para ver as opções.";
+    // QUALQUER OUTRA MENSAGEM = MENU PRINCIPAL
+    // Não há mais mensagem de boas-vindas, sempre mostra o menu
+    this.markMenuAsSeen(userId);
+    return createMenuMessage(currentBranch);
   }
 
   handleMenuOption(option, userId, branchConfig = null) {

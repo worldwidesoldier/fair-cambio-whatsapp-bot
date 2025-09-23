@@ -1,33 +1,36 @@
 {
   "welcome": {
-    "template": "{{greeting}}{{name}}! 👋\n\nBem-vindo à *{{company}}*!\n{{address}}\n{{phone}}\n\nComo posso ajudar você hoje?\n\nDigite *MENU* para ver as opções disponíveis ou envie sua dúvida diretamente.",
-    "variables": {
-      "company": "FAIR CÂMBIO SUL",
-      "address": "📍 Endereço da Filial",
-      "phone": "📞 (91) 3333-4444"
-    }
+    "template": "",
+    "variables": {},
+    "lastUpdated": "2025-09-23T02:57:53.661Z"
   },
   "menu": {
-    "template": "🏪 {{company}}\n  Seu câmbio de confiança há 30 anos\n\n  📋 Escolha uma opção:\n\n  💰 Taxas de hoje - Digite 1\n  🕐 Nossos horários - Digite 2\n  📍 Nossas localizações - Digite 3\n  📋 Documentos necessários - Digite 4\n  🛒 Como funciona a compra - Digite 5\n  👨‍💼 Falar com atendente - Digite 6\n\n  ou mande sua dúvida diretamente! 💬",
+    "template": "🏪 *FAIR CÂMBIO SUL*\n_Seu câmbio de confiança há 30 anos_\n\n📋 *Escolha uma opção:*\n\n💰 Taxas de hoje - Digite 1\n🕐 Nossos horários - Digite 2\n📍 Nossas localizações - Digite 3\n📋 Documentos necessários - Digite 4\n🌎 Western Union - Digite 5\n🙋‍♂️ Falar com atendente - Digite 6\n\nou mande sua dúvida diretamente! 💬",
     "variables": {
       "company": "FAIR CÂMBIO SUL"
-    }
+    },
+    "lastUpdated": "2025-09-23T03:26:07.687Z"
   },
   "hours": {
-    "template": "⏰ *HORÁRIOS DE FUNCIONAMENTO*\n\n{{branches}}\n\n📞 *Atendimento WhatsApp:*\nSegunda a Sexta: 09:00 às 18:00\nSábado: 09:00 às 14:00\n\n_Mensagens fora do horário serão respondidas no próximo dia útil_",
+    "template": "🕐 *HORÁRIOS DE FUNCIONAMENTO*\n\n📍 *Fair São José (Matriz)*\n⏰ Seg-Sex: 09:00-17:30\n⏰ Sáb/Dom: Fechado\n\n📍 *Fair Balneário Camboriú*\n⏰ Seg-Sex: 09:00-17:00\n⏰ Sáb: 09:00-12:00 | Dom: Fechado\n\n📍 *Fair Bombinhas*\n⏰ Seg-Sex: 09:00-17:00\n⏰ Sáb/Dom: Fechado\n\n📍 *Fair Brusque*\n⏰ Seg-Sex: 09:00-17:00\n⏰ Sáb/Dom: Fechado\n\n📍 *Fair Criciúma*\n⏰ Seg-Sex: 09:00-17:00\n⏰ Sáb/Dom: Fechado\n\n🏪 Digite *MENU* para voltar",
     "variables": {
-      "branches": "*Unidade Centro (Matriz):*\nSegunda a Sexta: 09:00 às 18:00\nSábado: 09:00 às 14:00\nDomingo: Fechado\n\n*Unidades Shopping:*\nSegunda a Sábado: 10:00 às 22:00\nDomingo: 14:00 às 20:00\n\n*Unidade Aeroporto:*\nTodos os dias: 06:00 às 22:00"
-    }
+      "last_update": "Atualizado hoje"
+    },
+    "lastUpdated": "2025-09-23T03:12:35.446Z"
   },
   "documents": {
-    "template": "📄 *DOCUMENTOS NECESSÁRIOS*\n\nPara realizar operações de câmbio, você precisará:\n\n*Pessoa Física:*\n✅ Documento de identidade com foto (RG ou CNH)\n✅ CPF\n✅ Comprovante de residência (últimos 90 dias)\n\n*Pessoa Jurídica:*\n✅ CNPJ\n✅ Contrato Social\n✅ Documento do representante legal\n✅ Procuração (se aplicável)\n\n*Valores acima de R$ 10.000:*\n📌 Comprovante de origem dos recursos\n📌 Declaração de propósito da operação\n\n⚠️ *Importante:* Todos os documentos devem ser originais ou cópias autenticadas.",
-    "variables": {}
+    "template": "📄 *DOCUMENTOS NECESSÁRIOS*\n\n💰 *Até R$ 9.990:*\n✅ RG ou CNH (documento com foto)\n✅ Comprovante de endereço (recente)\n💵 Pagamento: Dinheiro em espécie\n\n💳 *Pagamento digital:*\n🏦 PIX ou TED/DOC até 17h\n📝 Conta deve estar no seu nome\n\n💵 *Acima R$ 9.990:*\n🏦 Apenas transferência bancária\n📞 Entre em contato com nossa equipe previamente\n\n🏪 Digite *MENU* para voltar",
+    "variables": {
+      "last_update": "Documentos atualizados"
+    },
+    "lastUpdated": "2025-09-23T03:20:39.714Z"
   },
   "locations": {
-    "template": "📍 *NOSSAS LOCALIZAÇÕES*\n\n{{branches}}",
+    "template": "📍 *NOSSAS LOCALIZAÇÕES*\n\n📍 *Fair São José (Matriz)*\n🏢 Av. Presidente Kennedy, 1953 - Campinas, São José - SC, 88102-401\n\n📍 *Fair Balneário Camboriú*\n🏢 Av. Brasil, 1615 - Sala 22 - Centro, Balneário Camboriú - SC, 88330-048\n\n📍 *Fair Bombinhas*\n🏢 Av. Leopoldo Zarling, 1221 - Bombas, Bombinhas - SC, 88215-000\n\n📍 *Fair Brusque*\n🏢 Rua Centro, 100 - Centro, Brusque - SC, 88350-000\n\n📍 *Fair Criciúma*\n🏢 R. Cel. Pedro Benedet, 190 - Centro, Criciúma - SC, 88801-250\n\n🏪 Digite *MENU* para voltar",
     "variables": {
-      "branches": "*1. Centro (Matriz)*\n📍 Rua do Comércio, 123 - Centro\n⏰ Seg-Sex: 09:00 às 18:00\n⏰ Sábado: 09:00 às 14:00\n⏰ Domingo: Fechado\n🗺️ https://maps.google.com/centro\n\n*2. Shopping Pátio Belém*\n📍 Av. Augusto Montenegro, 4300 - Parque Verde\n⏰ Seg-Sáb: 10:00 às 22:00\n⏰ Domingo: 14:00 às 20:00\n🗺️ https://maps.google.com/shopping\n\n*3. Aeroporto Val-de-Cans*\n📍 Av. Julio César, s/n - Val-de-Cans\n⏰ Todos os dias: 06:00 às 22:00\n🗺️ https://maps.google.com/aeroporto"
-    }
+      "last_update": "Endereços simplificados"
+    },
+    "lastUpdated": "2025-09-23T03:16:23.653Z"
   },
   "purchase_process": {
     "template": "🛒 *COMO FUNCIONA A COMPRA*\n\n*Passo a passo para comprar moeda estrangeira:*\n\n*1️⃣ Consulte nossa cotação*\nDigite *1* para ver as taxas atuais\n\n*2️⃣ Traga seus documentos*\n• RG ou CNH (documento com foto)\n• CPF\n• Comprovante de residência (últimos 90 dias)\n\n*3️⃣ Venha até nossa loja*\nDigite *3* para ver nossas localizações\n\n*4️⃣ Finalização*\n• Preenchimento de declaração\n• Pagamento em dinheiro ou cartão\n• Recebimento da moeda\n\n⚠️ *Importante:*\n• Valores acima de R$ 10.000 requerem comprovação de origem\n• Consulte disponibilidade antes de se deslocar\n• Atendimento de segunda a sábado\n\n📞 Dúvidas? Digite *6* para falar com um atendente!",
@@ -44,5 +47,25 @@
   "error": {
     "template": "❌ Desculpe, não entendi sua mensagem.\n\nDigite *MENU* para ver as opções disponíveis ou envie:\n• *cotação* - Ver todas as cotações\n• *horário* - Nossos horários\n• *endereço* - Nossas localizações\n• *documento* - Documentos necessários\n• *atendente* - Falar com um atendente",
     "variables": {}
+  },
+  "rates": {
+    "template": "💰 *COTAÇÕES DE HOJE*\n\n🇺🇸 *Dólar Americano (USD)*\n💵 Compra: R$ {{usd_buy}}\n💵 Venda: R$ {{usd_sell}}\n\n🇪🇺 *Euro (EUR)*\n💶 Compra: R$ {{eur_buy}}\n💶 Venda: R$ {{eur_sell}}\n\n🇬🇧 *Libra Esterlina (GBP)*\n💷 Compra: R$ {{gbp_buy}}\n💷 Venda: R$ {{gbp_sell}}\n\n📅 Última atualização: {{last_update}}\n\n⚠️ *Cotações sujeitas a alteração*\n💡 Consulte disponibilidade antes de se deslocar\n\n🏪 Digite *MENU* para voltar às opções",
+    "variables": {
+      "usd_buy": "5,35",
+      "usd_sell": "5,75",
+      "eur_buy": "5,95",
+      "eur_sell": "6,35",
+      "gbp_buy": "7,15",
+      "gbp_sell": "7,55",
+      "last_update": "Hoje às 14:30"
+    },
+    "lastUpdated": "2025-09-23T03:01:00.071Z"
+  },
+  "western_union": {
+    "template": "🌎 *WESTERN UNION*\n_Parceiro oficial para remessas internacionais_\n\n💡 *Taxas dinâmicas em tempo real*\n\n❗ *Não informamos cotação por mensagem:*\n📈 Taxas mudam constantemente\n🌍 Dependem do país de destino\n💳 Variam por forma de pagamento\n\n✅ *Como funciona:*\n1️⃣ Entre em contato conosco\n2️⃣ Informe país e valor desejado\n3️⃣ Simulação AO VIVO no sistema\n4️⃣ Cotação atual e precisa\n\n📞 Digite *6* para falar com atendente\n\n🏪 Digite *MENU* para voltar",
+    "variables": {
+      "last_update": "Serviço Western Union"
+    },
+    "lastUpdated": "2025-09-23T03:26:30.725Z"
   }
 }

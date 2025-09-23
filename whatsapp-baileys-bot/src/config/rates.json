@@ -3,21 +3,21 @@
     "USD": {
       "name": "Dólar Americano",
       "emoji": "🇺🇸",
-      "buy": 5.1500,
-      "sell": 5.3500
+      "buy": 5.35,
+      "sell": 5.75
     },
     "EUR": {
       "name": "Euro",
       "emoji": "🇪🇺",
-      "buy": 5.6200,
-      "sell": 5.8200
+      "buy": 5.95,
+      "sell": 6.35
     },
     "GBP": {
       "name": "Libra Esterlina",
       "emoji": "🇬🇧",
-      "buy": 6.4500,
-      "sell": 6.6500
+      "buy": 7.15,
+      "sell": 7.55
     }
   },
-  "lastUpdate": "2025-01-15T10:30:00.000Z"
+  "lastUpdate": "2025-09-23T02:52:37.295Z"
 }
